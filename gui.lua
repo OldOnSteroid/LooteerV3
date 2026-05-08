@@ -167,6 +167,7 @@ gui.elements = {
         tree               = tree_node:new(1),
         draw_wanted_toggle = checkbox:new(false, get_hash(plugin_label .. "_draw_wanted_toggle")),
         scan_items_toggle  = checkbox:new(false, get_hash(plugin_label .. "_scan_items_toggle")),
+        draw_path_toggle   = checkbox:new(false, get_hash(plugin_label .. "_draw_path_toggle")),
     },
 }
 
@@ -471,6 +472,9 @@ function gui.render()
             "Draw circles on items the bot considers picking up.")
         e.debug.scan_items_toggle:render("Scan Items",
             "Print skin / rarity / sno_id / category of all nearby items to console and screen.")
+        e.debug.draw_path_toggle:render("Draw Path / Target",
+            "Show the pathfinder's current target marker and pathing nodes on screen. "
+            .. "Off by default — only useful for debugging movement issues.")
         e.debug.tree:pop()
     end
 

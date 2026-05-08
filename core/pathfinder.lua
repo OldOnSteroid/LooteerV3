@@ -486,6 +486,10 @@ end)
 
 on_render(function()
     if not settings.enabled then return end
+    -- Pathfinder draws TARGET / PATH markers on every frame as a debug aid.
+    -- Hidden by default — gate behind the Debug > Draw Path / Target toggle
+    -- so normal users don't see this clutter while looting.
+    if not settings.get().draw_path then return end
 
     if target_position then
         if target_position.x then

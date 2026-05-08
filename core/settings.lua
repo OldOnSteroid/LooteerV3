@@ -97,7 +97,7 @@ local settings = {
     cube=false,  cube_rarity=0,
     seal=false,  seal_rarity=0,
     -- debug
-    draw_wanted_items=false, scan_items=false,
+    draw_wanted_items=false, scan_items=false, draw_path=false,
 }
 
 function Settings.update()
@@ -213,6 +213,7 @@ function Settings.update()
 
         draw_wanted_items = e.debug.draw_wanted_toggle:get(),
         scan_items        = e.debug.scan_items_toggle:get(),
+        draw_path         = e.debug.draw_path_toggle:get(),
     }
 
     -- Sync pathfinder settings
