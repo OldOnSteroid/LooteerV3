@@ -172,13 +172,33 @@ gui.elements = {
     },
 }
 
-local function _catalog_age_str()
-    local t = ItemFilter._catalog_loaded_at
-    if not t then return "" end
+-- Read the timestamp Updater.bat writes to data/last_sync.lua on every
+-- successful fetch. This is the actual sync time, independent of when
+-- Lua last reloaded the catalog into memory. Cached for 5s so we're not
+-- hitting the filesystem on every render frame.
+local _sync_cache = nil
+local _sync_check_at = 0
+
+local function _last_sync_epoch()
+    local now = os.time()
+    if now - _sync_check_at >= 5 then
+        _sync_check_at = now
+        package.loaded["data.last_sync"] = nil
+        local ok, epoch = pcall(require, "data.last_sync")
+        _sync_cache = (ok and type(epoch) == "number") and epoch or nil
+    end
+    return _sync_cache
+end
+
+local function _sync_age_str()
+    local t = _last_sync_epoch()
+    if not t then return "never synced" end
     local age = os.time() - t
-    if age < 60 then return "just now"
-    elseif age < 3600 then return tostring(math.floor(age / 60)) .. "m ago"
-    else return tostring(math.floor(age / 3600)) .. "h ago"
+    if age < 0      then return "synced just now"
+    elseif age < 60 then return "synced just now"
+    elseif age < 3600  then return "synced " .. tostring(math.floor(age / 60))   .. "m ago"
+    elseif age < 86400 then return "synced " .. tostring(math.floor(age / 3600)) .. "h ago"
+    else                    return "synced " .. tostring(math.floor(age / 86400)) .. "d ago"
     end
 end
 
@@ -189,33 +209,31 @@ function gui.render()
     local catalog_status
     if catalog_loaded then
         catalog_status = "catalog: v" .. tostring(ItemFilter._items_version)
-            .. " (" .. _catalog_age_str() .. ")"
+            .. " (" .. _sync_age_str() .. ")"
     else
-        catalog_status = "!! CATALOG NOT LOADED — run Updater.bat !!"
+        catalog_status = "!! CATALOG NOT LOADED -- click Load Catalog !!"
     end
     if not e.main_tree:push("LooteerV3 | " .. catalog_status) then return end
 
     e.main_toggle:render("Enable", "Toggles the main module on/off")
 
-    -- Load / reload catalog. Click-to-reload pattern: trigger on the
-    -- false->true transition so the action only fires once per click
-    -- rather than every frame. If the framework supports :set(), we reset
-    -- the checkbox so it visually acts like a button; if not, it stays
-    -- checked until the user unchecks it (next reload re-arms on the
-    -- following check). Label changes between "Load" and "Reload" based
-    -- on current catalog state so the button is obviously useful in both.
+    -- Load / reload catalog. Click triggers Updater.bat in one-shot mode
+    -- (single fetch + exit) so the on-disk catalog is fresh, then reads
+    -- it back into Lua memory. False->true transition pattern so the
+    -- action only fires once per click; if the framework supports :set()
+    -- we reset the checkbox so it visually acts like a button. Label
+    -- flips between "Load" and "Reload" based on current state.
     local catalog_btn_label = catalog_loaded and "Reload Catalog" or "Load Catalog"
     local catalog_btn_tip   = catalog_loaded
-        and "Re-read data/items.lua from disk. Updater.bat refreshes that file "
-            .. "every 60s while running; click here to pick up the new version "
-            .. "without restarting the script."
-        or  "Read data/items.lua from disk. The file ships with the repo, so "
-            .. "this normally succeeds on the first click. If it doesn't, run "
-            .. "Updater.bat to fetch it from the cloud server."
+        and "Run Updater.bat once to pull the latest items.lua from the cloud, "
+            .. "then re-read it from disk. No need to keep Updater.bat running."
+        or  "Run Updater.bat once to fetch items.lua, then load it. The repo "
+            .. "ships with a pre-built catalog so this normally succeeds even "
+            .. "without a server connection."
     e.reload_catalog_toggle:render(catalog_btn_label, catalog_btn_tip)
     local now_reload = e.reload_catalog_toggle:get()
     if now_reload and not _last_reload_state then
-        ItemFilter.load_catalog()
+        ItemFilter.fetch_and_reload()
         pcall(function() e.reload_catalog_toggle:set(false) end)
         catalog_loaded = ItemFilter._catalog_loaded
     end

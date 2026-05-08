@@ -37,6 +37,34 @@ function ItemFilter.load_catalog()
     return false
 end
 
+-- Fire Updater.bat in oneshot mode (single fetch + exit), then re-read
+-- data/items.lua. Used by the Reload Catalog button so users don't have
+-- to leave a long-running Updater console window open. Synchronous so
+-- load_catalog sees the freshly downloaded file. If os.execute is
+-- sandboxed by the host, the pcall fails silently and we fall back to
+-- reading whatever is already on disk.
+--
+-- We don't know what cwd QQT runs in, so try a few relative invocations
+-- and use whichever one cmd doesn't error on.
+function ItemFilter.fetch_and_reload()
+    local attempts = {
+        "Updater.bat oneshot >NUL 2>&1",
+        ".\\Updater.bat oneshot >NUL 2>&1",
+        "cmd /c Updater.bat oneshot >NUL 2>&1",
+    }
+    local fetched = false
+    for _, cmd in ipairs(attempts) do
+        local ok = pcall(os.execute, cmd)
+        if ok then fetched = true; break end
+    end
+    if fetched then
+        console.print("[LooteerV3] Updater oneshot complete — reloading catalog.")
+    else
+        console.print("[LooteerV3] Could not launch Updater.bat — reloading on-disk catalog as-is. Run Updater.bat manually if data is stale.")
+    end
+    return ItemFilter.load_catalog()
+end
+
 -- Try to load on script startup. data/items.lua ships with the repo, so
 -- this normally succeeds the first time. If somehow missing, the user
 -- gets a console warning and the loot engine refuses to act until they
