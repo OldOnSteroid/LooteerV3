@@ -55,7 +55,7 @@ local GROUP_CATEGORY = {
     weapon="equipment", offhand="equipment", armor="equipment",
     jewelry="equipment", unique="equipment",
     -- Loot categories (1:1 passthrough — server emits the category name)
-    cube="cube", xp_powerup="xp_powerup", keys="keys",
+    cube="cube", xp_powerup="xp_powerup", class_powerup="class_powerup", keys="keys",
     obol_bag="obol_bag", goblin_cache="goblin_cache",
     charm="charm", seal="seal", sigil="sigil",
     compass="compass", heavenly_sigil="heavenly_sigil",

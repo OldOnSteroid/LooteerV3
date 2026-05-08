@@ -143,6 +143,7 @@ gui.elements = {
         misc_trinkets_toggle     = checkbox:new(true, get_hash(plugin_label .. "_misc_trinkets_toggle")),
         boss_drops_toggle        = checkbox:new(true, get_hash(plugin_label .. "_boss_drops_toggle")),
         boss_drops_rarity_combo  = combo_box:new(0,   get_hash(plugin_label .. "_boss_drops_rarity_combo")),
+        class_powerup_toggle     = checkbox:new(false, get_hash(plugin_label .. "_class_powerup_toggle")),
     },
 
     charm = {
@@ -356,7 +357,11 @@ function gui.render()
         e.always.misc_trinkets_toggle:render("Misc Trinkets",
             "Pickup small misc drops (Flippy_Misc). Default ON.")
         e.always.xp_powerup_toggle:render("XP Powerups",
-            "Pickup experience motes / XP power-ups. Default ON.")
+            "Pickup experience motes (Experience_PowerUp drops). Default ON.")
+        e.always.class_powerup_toggle:render("Class Powerups",
+            "Pickup class-resource ground orbs: Sorc Crackling Energy, Necro Blood Orb, "
+            .. "Spiritborn Feather, Rogue Dance of Knives, Health Potion charges. "
+            .. "Default OFF — most builds auto-collect these. Flip on if yours doesn't.")
         e.always.glyph_drop_toggle:render("Glyph Drops",
             "Pickup paragon glyphs that drop in nightmare dungeons. Default ON.")
         e.always.keys_toggle:render("Keys",

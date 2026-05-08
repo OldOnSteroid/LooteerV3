@@ -30,6 +30,7 @@ function LootEngine.check_want_item(item, ignore_distance)
     if cat == "keys"          then return s.keys_loot     ~= false end
     if cat == "misc_trinkets" then return s.misc_trinkets ~= false end
     if cat == "xp_powerup"    then return s.xp_powerup    ~= false end
+    if cat == "class_powerup" then return s.class_powerup == true   end
     if cat == "glyph_drop"    then return s.glyph_drop    ~= false end
     if cat == "boss_drops" then
         if s.boss_drops == false then return false end

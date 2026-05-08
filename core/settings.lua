@@ -49,6 +49,10 @@ local settings = {
     glyph_drop    = true,
     misc_trinkets = true,
     boss_drops    = true,
+    -- Class-resource ground pickups (Sorc Crackling Energy, Necro Blood
+    -- Orb, etc.) — default OFF because most builds auto-collect these.
+    -- Flip on if your build/setup doesn't.
+    class_powerup = false,
     -- Per-category min-rarity thresholds (0 = loot any, >0 = min rarity to loot)
     sigil_rarity       = 0,
     compass_rarity     = 0,
@@ -203,6 +207,7 @@ function Settings.update()
         misc_trinkets = e.always.misc_trinkets_toggle:get(),
         boss_drops    = e.always.boss_drops_toggle:get(),
         boss_drops_rarity = rarity_threshold(e.always.boss_drops_rarity_combo:get()),
+        class_powerup = e.always.class_powerup_toggle:get(),
 
         charm        = e.charm.toggle:get(),
         charm_rarity = charm_rarity_threshold(e.charm.rarity_combo:get()),
