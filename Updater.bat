@@ -60,20 +60,35 @@ call :sync_once
 goto loop
 
 :: -- Sub: do a single curl pair + write last_sync.lua --
+:: We unconditionally write a structured log to data\last_sync_log.txt so
+:: the V3 GUI can tell us EXACTLY what happened, even when oneshot mode
+:: is invoked through `>NUL 2>&1` redirection. The log's existence is
+:: also proof that the bat actually executed (vs being silently
+:: blocked by an os.execute sandbox).
 :sync_once
-curl -s -f -o "%DATA_DIR%\items.lua" "%BASE_URL%/d4/items.lua"
+set LOG=%DATA_DIR%\last_sync_log.txt
+> "%LOG%" echo == Updater.bat sync_once ==
+>> "%LOG%" echo time      : %DATE% %TIME%
+>> "%LOG%" echo mode      : %MODE%
+>> "%LOG%" echo cwd       : %CD%
+>> "%LOG%" echo bat_dir   : %~dp0
+>> "%LOG%" echo data_dir  : %DATA_DIR%
+>> "%LOG%" echo base_url  : %BASE_URL%
+>> "%LOG%" echo profile   : !PROFILE_KEY!
+
+curl -fsS -o "%DATA_DIR%\items.lua" "%BASE_URL%/d4/items.lua" 2>> "%LOG%"
 set ITEMS_OK=%errorlevel%
+>> "%LOG%" echo curl items.lua exit=%ITEMS_OK%
+
+curl -fsS -o "%DATA_DIR%\config.lua" "%BASE_URL%/api/config/!PROFILE_KEY!/config.lua" 2>> "%LOG%"
+>> "%LOG%" echo curl config.lua exit=%errorlevel%
+
+for %%I in ("%DATA_DIR%\items.lua") do >> "%LOG%" echo items.lua_size=%%~zI
+
 if %ITEMS_OK% equ 0 (
     if /i not "%MODE%"=="oneshot" echo   [OK] items.lua
 ) else (
-    if /i not "%MODE%"=="oneshot" echo   [FAIL] items.lua - server may be offline
-)
-
-curl -s -f -o "%DATA_DIR%\config.lua" "%BASE_URL%/api/config/!PROFILE_KEY!/config.lua"
-if %errorlevel% equ 0 (
-    if /i not "%MODE%"=="oneshot" echo   [OK] config.lua
-) else (
-    if /i not "%MODE%"=="oneshot" echo   [FAIL] config.lua
+    if /i not "%MODE%"=="oneshot" echo   [FAIL] items.lua - see data\last_sync_log.txt
 )
 
 :: Stamp the sync time as a Lua module so gui.lua can require() it.

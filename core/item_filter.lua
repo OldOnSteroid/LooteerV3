@@ -16,8 +16,9 @@ ItemFilter._catalog_loaded_at = nil   -- os.time() of last successful load
 
 function ItemFilter.load_catalog()
     package.loaded["data.items"] = nil
-    local ok, cloud = pcall(require, "data.items")
-    if ok and cloud then
+    local ok, cloud_or_err = pcall(require, "data.items")
+    if ok and type(cloud_or_err) == "table" then
+        local cloud = cloud_or_err
         Items = cloud
         ItemFilter._items_version    = cloud.version or "unknown"
         ItemFilter._catalog_loaded   = true
@@ -32,44 +33,124 @@ function ItemFilter.load_catalog()
     ItemFilter._items_version     = "not loaded"
     ItemFilter._catalog_loaded    = false
     ItemFilter._catalog_loaded_at = nil
-    console.print("[LooteerV3] CATALOG NOT LOADED — looting is disabled. " ..
-        "Run Updater.bat to fetch data/items.lua from the cloud.")
+    if not ok then
+        -- pcall returned false — cloud_or_err is the error message string.
+        console.print("[LooteerV3] CATALOG NOT LOADED — require failed:\n  "
+            .. tostring(cloud_or_err))
+    else
+        console.print("[LooteerV3] CATALOG NOT LOADED — items.lua didn't return a "
+            .. "table (got " .. type(cloud_or_err) .. "). File may be truncated "
+            .. "or not Lua content.")
+    end
     return false
 end
 
--- Fire Updater.bat in oneshot mode (single fetch + exit), then re-read
--- data/items.lua. Used by the Reload Catalog button so users don't have
--- to leave a long-running Updater console window open. Synchronous so
--- load_catalog sees the freshly downloaded file. If os.execute is
--- sandboxed by the host, the pcall fails silently and we fall back to
--- reading whatever is already on disk.
+-- Resolve the plugin's own folder. QQT sandboxes the `debug` library so
+-- we can't use debug.getinfo. Instead, ask Lua's loader where it'd find
+-- our own module file via package.searchpath, then chop off the
+-- "core/item_filter.lua" suffix.
 --
--- We don't know what cwd QQT runs in, so try a few relative invocations
--- and use whichever one cmd doesn't error on.
-function ItemFilter.fetch_and_reload()
-    local attempts = {
-        "Updater.bat oneshot >NUL 2>&1",
-        ".\\Updater.bat oneshot >NUL 2>&1",
-        "cmd /c Updater.bat oneshot >NUL 2>&1",
-    }
-    local fetched = false
-    for _, cmd in ipairs(attempts) do
-        local ok = pcall(os.execute, cmd)
-        if ok then fetched = true; break end
+-- This is needed because QQT's `os.execute` child processes don't always
+-- inherit the plugin folder as their cwd, and `io.open` on relative
+-- paths has the same problem. Using absolute paths sidesteps both.
+local function _plugin_dir()
+    if package.searchpath then
+        local p = package.searchpath("core.item_filter", package.path)
+        if p then
+            return (p:gsub("[/\\]core[/\\]item_filter%.lua$", "/"))
+        end
     end
-    if fetched then
-        console.print("[LooteerV3] Updater oneshot complete — reloading catalog.")
+    -- Fallback: walk package.path manually and check which entry
+    -- actually contains our file on disk.
+    for entry in (package.path .. ";"):gmatch("([^;]+);") do
+        local prefix = entry:gsub("%?%.lua$", ""):gsub("%?$", "")
+        if prefix ~= "" then
+            local probe = prefix .. "core/item_filter.lua"
+            local f = io.open(probe, "r")
+            if not f then
+                probe = prefix .. "core\\item_filter.lua"
+                f = io.open(probe, "r")
+            end
+            if f then f:close(); return prefix end
+        end
+    end
+    -- Last resort — assume cwd is the plugin dir (works on most QQT setups
+    -- but not all; the messages will be relative-path errors, not crashes).
+    return ""
+end
+
+local _PLUG = _plugin_dir()
+
+local function _file_size(path)
+    local f = io.open(path, "rb")
+    if not f then return nil end
+    local n = f:seek("end") or 0
+    f:close()
+    return n
+end
+
+local function _read_text(path, max_chars)
+    local f = io.open(path, "r")
+    if not f then return nil end
+    local txt = f:read(max_chars or 4096) or ""
+    f:close()
+    txt = txt:gsub("[\r\n]+$", "")
+    return (txt ~= "" and txt) or nil
+end
+
+-- Fire Updater.bat in oneshot mode (single fetch + exit), then re-read
+-- data/items.lua. We use absolute paths derived from this file's own
+-- location so the spawned cmd, the bat's %~dp0 expansion, and the
+-- subsequent io.open all agree on what "the plugin folder" means.
+--
+-- Success is judged by whether data/items.lua actually changed on disk
+-- AND data/last_sync_log.txt got written — os.execute returning OK only
+-- means the shell was callable, not that the bat actually ran.
+function ItemFilter.fetch_and_reload()
+    local items_path = _PLUG .. "data/items.lua"
+    local log_path   = _PLUG .. "data/last_sync_log.txt"
+    local bat_path   = _PLUG .. "Updater.bat"
+
+    local before = _file_size(items_path) or 0
+
+    -- Wipe the previous log so its presence after spawn proves the bat ran.
+    pcall(os.execute, string.format('del /q "%s" >NUL 2>&1', log_path))
+    -- Run the bat with its absolute path. The cmd /c outer quotes are the
+    -- canonical Windows trick to handle paths with spaces.
+    pcall(os.execute, string.format('cmd /c ""%s" oneshot" >NUL 2>&1', bat_path))
+
+    local log_size = _file_size(log_path) or 0
+    local after    = _file_size(items_path) or 0
+
+    if log_size == 0 then
+        console.print("[LooteerV3] Updater.bat didn't appear to run.\n"
+            .. "  Plugin dir resolved as: " .. _PLUG .. "\n"
+            .. "  Bat path tried:         " .. bat_path .. "\n"
+            .. "  Possible cause: QQT is sandboxing os.execute, or the bat "
+            .. "isn't at that path. Run Updater.bat manually to confirm it works.")
+    elseif after == 0 then
+        local log = _read_text(log_path, 2048)
+        console.print("[LooteerV3] Updater ran but items.lua is missing/empty. Log:\n"
+            .. (log or "(log unreadable)"))
+    elseif after ~= before then
+        console.print(string.format(
+            "[LooteerV3] Updater fetched a fresh catalog (%d -> %d bytes). Reloading.",
+            before, after))
     else
-        console.print("[LooteerV3] Could not launch Updater.bat — reloading on-disk catalog as-is. Run Updater.bat manually if data is stale.")
+        console.print("[LooteerV3] Updater complete (catalog unchanged). Reloading.")
     end
     return ItemFilter.load_catalog()
 end
 
--- Try to load on script startup. data/items.lua ships with the repo, so
--- this normally succeeds the first time. If somehow missing, the user
--- gets a console warning and the loot engine refuses to act until they
--- run Updater.bat and hit Reload Catalog in the GUI.
+-- Startup: try to load the catalog. If it's missing, automatically
+-- bootstrap by running Updater.bat oneshot. The repo ships a pre-built
+-- items.lua, so this fallback is mainly for users who somehow deleted
+-- the data/ folder or never had a successful sync.
 ItemFilter.load_catalog()
+if not ItemFilter._catalog_loaded then
+    console.print("[LooteerV3] No catalog on disk — bootstrapping via Updater.bat...")
+    ItemFilter.fetch_and_reload()
+end
 
 -- Name-pattern fallback comes from the server-emitted Items.name_patterns
 -- table — never hardcoded here. To add or change patterns, edit the
@@ -85,7 +166,7 @@ local GROUP_CATEGORY = {
     -- Loot categories (1:1 passthrough — server emits the category name)
     cube="cube", xp_powerup="xp_powerup", class_powerup="class_powerup", keys="keys",
     obol_bag="obol_bag", goblin_cache="goblin_cache",
-    charm="charm", seal="seal", sigil="sigil",
+    charm="charm", trophy="trophy", seal="seal", sigil="sigil",
     compass="compass", heavenly_sigil="heavenly_sigil",
     glyph_drop="glyph_drop", boss_drops="boss_drops",
     misc_trinkets="misc_trinkets",
@@ -94,7 +175,7 @@ local GROUP_CATEGORY = {
     recipe="recipe", crafting="crafting", cache="cache",
     consumable="consumable", misc="misc",
     -- Legacy / Wowhead aliases kept for catalogs predating the rename
-    gem="gemstone", trophy="charm", horadric_seal="seal",
+    gem="gemstone", horadric_seal="seal",
     crafting_material="crafting", crafting_recipe="recipe",
     essence="crafting",
 }

@@ -40,7 +40,7 @@ local settings = {
     heavenly_sigil = false, gemstone = false, boss_items = false,
     sigils = false, compass = false, rune = false, tribute = false,
     scroll = false, event_items = true, goblin_cache = true, obols = true,
-    cache = true, consumable = false, recipe = false,
+    cache = true, consumable = false, recipe = false, trophy = false,
     -- Always-loot categories (opt-out — defaults are TRUE because these are
     -- high-value; users uncheck to skip them)
     uber          = true,
@@ -186,6 +186,7 @@ function Settings.update()
         cache           = e.types.cache_toggle:get(),
         consumable      = e.types.consumable_toggle:get(),
         recipe          = e.types.recipe_toggle:get(),
+        trophy          = e.types.trophy_toggle:get(),
 
         -- Per-category rarity thresholds (combo index → runtime rarity)
         sigil_rarity      = rarity_threshold(e.types.sigil_rarity_combo:get()),

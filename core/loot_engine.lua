@@ -139,6 +139,13 @@ function LootEngine.check_want_item(item, ignore_distance)
         return not Utils.is_inventory_full()
     end
 
+    -- Trophies are cosmetics (back trophies, mount trophies, banners).
+    -- Default off; user can opt in via the Trophy toggle.
+    if cat == "trophy" then
+        if not s.trophy then return false end
+        return not Utils.is_inventory_full()
+    end
+
     if cat == "cube" then
         if not s.cube or rarity < s.cube_rarity then return false end
         return not Utils.is_inventory_full()

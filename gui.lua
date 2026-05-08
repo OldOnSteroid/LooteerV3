@@ -118,6 +118,7 @@ gui.elements = {
         cache_toggle          = checkbox:new(true,  get_hash(plugin_label .. "_cache_toggle")),
         consumable_toggle     = checkbox:new(false, get_hash(plugin_label .. "_consumable_toggle")),
         recipe_toggle         = checkbox:new(false, get_hash(plugin_label .. "_recipe_toggle")),
+        trophy_toggle         = checkbox:new(false, get_hash(plugin_label .. "_trophy_toggle")),
         -- Per-type minimum-rarity combos (0 = loot any rarity)
         sigil_rarity_combo      = combo_box:new(0, get_hash(plugin_label .. "_sigil_rarity_combo")),
         compass_rarity_combo    = combo_box:new(0, get_hash(plugin_label .. "_compass_rarity_combo")),
@@ -174,20 +175,34 @@ gui.elements = {
 
 -- Read the timestamp Updater.bat writes to data/last_sync.lua on every
 -- successful fetch. This is the actual sync time, independent of when
--- Lua last reloaded the catalog into memory. Cached for 5s so we're not
--- hitting the filesystem on every render frame.
+-- Lua last reloaded the catalog into memory.
+--
+-- We deliberately bypass require() — package.loaded caching in QQT was
+-- pinning the value to the first load. io.open + regex on the raw file
+-- gives us a fresh read every time. Cached at the Lua level for 5s so
+-- we don't stat the filesystem on every render frame.
 local _sync_cache = nil
 local _sync_check_at = 0
 
 local function _last_sync_epoch()
     local now = os.time()
-    if now - _sync_check_at >= 5 then
-        _sync_check_at = now
-        package.loaded["data.last_sync"] = nil
-        local ok, epoch = pcall(require, "data.last_sync")
-        _sync_cache = (ok and type(epoch) == "number") and epoch or nil
+    if now - _sync_check_at < 5 then return _sync_cache end
+    _sync_check_at = now
+
+    -- Resolve the path the same way require() would, but io.open it
+    -- ourselves so we always get the file content as it is on disk.
+    local path = package.searchpath and package.searchpath("data.last_sync", package.path)
+    local epoch = nil
+    if path then
+        local f = io.open(path, "r")
+        if f then
+            local content = f:read("*a") or ""
+            f:close()
+            epoch = tonumber(content:match("return%s+(%-?%d+)"))
+        end
     end
-    return _sync_cache
+    _sync_cache = epoch
+    return epoch
 end
 
 local function _sync_age_str()
@@ -451,6 +466,10 @@ function gui.render()
             "Pickup gems and gemstones.")
         e.types.gemstone_rarity_combo:render("  Gemstone Rarity", RARITIES,
             "Minimum rarity for gemstones.")
+
+        e.types.trophy_toggle:render("Trophies (cosmetic)",
+            "Pickup cosmetic trophy items (back trophies, mount trophies, banners). "
+            .. "Default OFF — these don't affect gameplay.")
 
         -- Consumables hidden in UI — D4 removed the elixir/incense/potion
         -- pickup loop these targeted. Uncomment to bring them back; the
