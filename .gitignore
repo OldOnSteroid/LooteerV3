@@ -1,0 +1,3 @@
+# User-specific credentials and config — never commit these
+data/profile.key
+data/config.lua
