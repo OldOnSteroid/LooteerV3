@@ -1,6 +1,6 @@
 # LooteerV3
 
-A Diablo IV loot automation plugin for [QuestQuesTool (QQT)](https://qqt.gg). Automatically picks up, filters, and prioritizes items based on customizable rules.
+A Diablo IV loot automation plugin for QQT. Automatically picks up, filters, and prioritizes items based on customizable rules.
 
 ## Features
 
@@ -8,12 +8,12 @@ A Diablo IV loot automation plugin for [QuestQuesTool (QQT)](https://qqt.gg). Au
 - **Priority modes** — nearest item first, or best item first (by rarity/power)
 - **Category toggles** — independently enable/disable boss materials, event items, goblin caches, sigils, gear, and more
 - **Distance limiting** — only loot items within a configurable radius
-- **D4Remote integration** — optionally reports loot statistics to [D4Remote](https://github.com/yourusername/D4RemoteServer) for web dashboard tracking
+- **D4Remote integration** — optionally reports loot statistics to D4Remote for web dashboard tracking
 - **Renderer overlay** — optional on-screen display of current loot state
 
 ## Requirements
 
-- QuestQuesTool (QQT) — [qqt.gg](https://qqt.gg)
+- QQT
 - Diablo IV (PC)
 
 ## Installation
@@ -42,7 +42,7 @@ All settings are accessible from the QQT in-game menu under **LooteerV3**:
 
 LooteerV3 automatically integrates with D4Remote if the plugin is loaded. No configuration required — loot statistics are reported via `D4Remote.record_loot(category, rarity)` on each item pickup.
 
-See the [D4Remote INTEGRATION.md](https://github.com/yourusername/D4Remote/blob/main/INTEGRATION.md) for details on building your own D4Remote-compatible plugin.
+See the D4Remote Integration for details on building your own D4Remote-compatible plugin.
 
 ## Plugin API
 
