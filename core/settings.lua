@@ -2,6 +2,26 @@ local gui = require("gui")
 
 local Settings = {}
 
+-- Translate the rarity-combo index (0..4 over Common/Magic/Rare/Legendary/
+-- Unique) into the runtime rarity threshold the loot engine compares
+-- against `info:get_rarity()`. The runtime values aren't sequential —
+-- Magic_2 / Rare_2 occupy gaps — so each label maps to the lowest runtime
+-- value that semantically counts as that tier.
+local RARITY_RUNTIME = { [0] = 0, [1] = 1, [2] = 3, [3] = 5, [4] = 6 }
+
+local function rarity_threshold(combo_idx)
+    return RARITY_RUNTIME[combo_idx or 0] or 0
+end
+
+-- Charm dropdown adds Set as index 5 (Talisman_Charm_Set_* drops only show
+-- up on charms). Set runtime rarity is 7 — the slot the V2 build used for
+-- the Set tier between Unique and uber-uniques.
+local CHARM_RARITY_RUNTIME = { [0] = 0, [1] = 1, [2] = 3, [3] = 5, [4] = 6, [5] = 7 }
+
+local function charm_rarity_threshold(combo_idx)
+    return CHARM_RARITY_RUNTIME[combo_idx or 0] or 0
+end
+
 Settings._web_config = nil  -- set by gui.lua when web config checkbox is enabled
 
 -- Pathfinder settings (read by core.pathfinder)
@@ -20,6 +40,27 @@ local settings = {
     heavenly_sigil = false, gemstone = false, boss_items = false,
     sigils = false, compass = false, rune = false, tribute = false,
     scroll = false, event_items = true, goblin_cache = true, obols = true,
+    cache = true, consumable = false, recipe = false,
+    -- Always-loot categories (opt-out — defaults are TRUE because these are
+    -- high-value; users uncheck to skip them)
+    uber          = true,
+    keys_loot     = true,
+    xp_powerup    = true,
+    glyph_drop    = true,
+    misc_trinkets = true,
+    boss_drops    = true,
+    -- Per-category min-rarity thresholds (0 = loot any, >0 = min rarity to loot)
+    sigil_rarity       = 0,
+    compass_rarity     = 0,
+    tribute_rarity     = 0,
+    rune_rarity        = 0,
+    gemstone_rarity    = 0,
+    cache_rarity       = 0,
+    scroll_rarity      = 0,
+    consumable_rarity  = 0,
+    recipe_rarity      = 0,
+    crafting_rarity    = 0,
+    boss_drops_rarity  = 0,
     -- jewelry
     legendary_amulet_ga_count=0, legendary_ring_ga_count=0,
     unique_amulet_ga_count=0,    unique_ring_ga_count=0,
@@ -64,7 +105,7 @@ function Settings.update()
     settings = {
         enabled      = e.main_toggle:get(),
         behavior     = e.general.behavior_combo:get(),
-        rarity       = e.general.rarity_combo:get(),
+        rarity       = rarity_threshold(e.general.rarity_combo:get()),
         distance     = e.general.distance_slider:get(),
         loot_priority= e.general.loot_priority_combo:get(),
 
@@ -138,13 +179,37 @@ function Settings.update()
         obols           = e.types.obols_toggle:get(),
         heavenly_sigil  = e.types.heavenly_sigil_toggle:get(),
         gemstone        = e.types.gemstone_toggle:get(),
+        cache           = e.types.cache_toggle:get(),
+        consumable      = e.types.consumable_toggle:get(),
+        recipe          = e.types.recipe_toggle:get(),
+
+        -- Per-category rarity thresholds (combo index → runtime rarity)
+        sigil_rarity      = rarity_threshold(e.types.sigil_rarity_combo:get()),
+        compass_rarity    = rarity_threshold(e.types.compass_rarity_combo:get()),
+        tribute_rarity    = rarity_threshold(e.types.tribute_rarity_combo:get()),
+        rune_rarity       = rarity_threshold(e.types.rune_rarity_combo:get()),
+        gemstone_rarity   = rarity_threshold(e.types.gemstone_rarity_combo:get()),
+        cache_rarity      = rarity_threshold(e.types.cache_rarity_combo:get()),
+        scroll_rarity     = rarity_threshold(e.types.scroll_rarity_combo:get()),
+        consumable_rarity = rarity_threshold(e.types.consumable_rarity_combo:get()),
+        recipe_rarity     = rarity_threshold(e.types.recipe_rarity_combo:get()),
+        crafting_rarity   = rarity_threshold(e.types.crafting_rarity_combo:get()),
+
+        -- Always-loot opt-outs
+        uber          = e.always.uber_toggle:get(),
+        keys_loot     = e.always.keys_toggle:get(),
+        xp_powerup    = e.always.xp_powerup_toggle:get(),
+        glyph_drop    = e.always.glyph_drop_toggle:get(),
+        misc_trinkets = e.always.misc_trinkets_toggle:get(),
+        boss_drops    = e.always.boss_drops_toggle:get(),
+        boss_drops_rarity = rarity_threshold(e.always.boss_drops_rarity_combo:get()),
 
         charm        = e.charm.toggle:get(),
-        charm_rarity = e.charm.rarity_combo:get(),
+        charm_rarity = charm_rarity_threshold(e.charm.rarity_combo:get()),
         cube         = e.cube.toggle:get(),
-        cube_rarity  = e.cube.rarity_combo:get(),
+        cube_rarity  = rarity_threshold(e.cube.rarity_combo:get()),
         seal         = e.seal.toggle:get(),
-        seal_rarity  = e.seal.rarity_combo:get(),
+        seal_rarity  = rarity_threshold(e.seal.rarity_combo:get()),
 
         draw_wanted_items = e.debug.draw_wanted_toggle:get(),
         scan_items        = e.debug.scan_items_toggle:get(),

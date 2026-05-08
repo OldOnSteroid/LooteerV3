@@ -49,6 +49,11 @@ local M = {
     },
 
     catalog = {},
+    -- Name patterns are server-managed — ship empty here so a fresh install
+    -- without a synced items.lua simply has no fallback patterns. Once the
+    -- Updater.bat / first cloud sync lands, the real list arrives in
+    -- data/items.lua and replaces this default.
+    name_patterns = {},
 }
 
 return M

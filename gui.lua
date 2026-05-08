@@ -2,17 +2,27 @@ local plugin_label = "LooteerV3"
 local gui = {}
 local ItemFilter = require("core.item_filter")
 
-local _cat_synced = false  -- one-time sync of checkbox to actual loaded state on first render
+-- Track the previous frame's state of the reload checkbox so we trigger
+-- load_catalog only on the false->true transition (one reload per click)
+-- rather than every frame the box is checked.
+local _last_reload_state = false
 
-local RARITIES  = { "Common", "Magic", "Magic_2", "Rare", "Rare_2", "Legendary", "Unique", "Set" }
+-- Dropdown labels. The combo's index is translated to the actual runtime
+-- rarity threshold by Settings.update (see core/settings.lua).
+local RARITIES  = { "Common", "Magic", "Rare", "Legendary", "Unique" }
+-- Charms can drop at Set tier (Talisman_Charm_Set_*); other categories
+-- can't, so the Set entry only appears in the charm dropdown.
+local CHARM_RARITIES = { "Common", "Magic", "Rare", "Legendary", "Unique", "Set" }
 local BEHAVIORS = { "Always", "Orbwalk" }
 
 gui.elements = {
     main_tree   = tree_node:new(0),
     main_toggle = checkbox:new(false, get_hash(plugin_label .. "_main_toggle")),
 
-    catalog_toggle    = checkbox:new(false, get_hash(plugin_label .. "_catalog_toggle")),
-    web_config_toggle = checkbox:new(false, get_hash(plugin_label .. "_web_config_toggle")),
+    -- Click-to-reload catalog. Acts like a button: when checked, we trigger
+    -- a reload and immediately reset to false on the next frame.
+    reload_catalog_toggle = checkbox:new(false, get_hash(plugin_label .. "_reload_catalog_toggle")),
+    web_config_toggle     = checkbox:new(false, get_hash(plugin_label .. "_web_config_toggle")),
 
     general = {
         tree                = tree_node:new(1),
@@ -90,6 +100,7 @@ gui.elements = {
 
     types = {
         tree                  = tree_node:new(1),
+        -- Per-type opt-out toggles
         quest_toggle          = checkbox:new(false, get_hash(plugin_label .. "_quest_toggle")),
         crafting_toggle       = checkbox:new(false, get_hash(plugin_label .. "_crafting_toggle")),
         boss_toggle           = checkbox:new(false, get_hash(plugin_label .. "_boss_toggle")),
@@ -104,6 +115,34 @@ gui.elements = {
         obols_toggle          = checkbox:new(true,  get_hash(plugin_label .. "_obols_toggle")),
         heavenly_sigil_toggle = checkbox:new(false, get_hash(plugin_label .. "_heavenly_sigil_toggle")),
         gemstone_toggle       = checkbox:new(false, get_hash(plugin_label .. "_gemstone_toggle")),
+        cache_toggle          = checkbox:new(true,  get_hash(plugin_label .. "_cache_toggle")),
+        consumable_toggle     = checkbox:new(false, get_hash(plugin_label .. "_consumable_toggle")),
+        recipe_toggle         = checkbox:new(false, get_hash(plugin_label .. "_recipe_toggle")),
+        -- Per-type minimum-rarity combos (0 = loot any rarity)
+        sigil_rarity_combo      = combo_box:new(0, get_hash(plugin_label .. "_sigil_rarity_combo")),
+        compass_rarity_combo    = combo_box:new(0, get_hash(plugin_label .. "_compass_rarity_combo")),
+        tribute_rarity_combo    = combo_box:new(0, get_hash(plugin_label .. "_tribute_rarity_combo")),
+        rune_rarity_combo       = combo_box:new(0, get_hash(plugin_label .. "_rune_rarity_combo")),
+        gemstone_rarity_combo   = combo_box:new(0, get_hash(plugin_label .. "_gemstone_rarity_combo")),
+        cache_rarity_combo      = combo_box:new(0, get_hash(plugin_label .. "_cache_rarity_combo")),
+        scroll_rarity_combo     = combo_box:new(0, get_hash(plugin_label .. "_scroll_rarity_combo")),
+        consumable_rarity_combo = combo_box:new(0, get_hash(plugin_label .. "_consumable_rarity_combo")),
+        recipe_rarity_combo     = combo_box:new(0, get_hash(plugin_label .. "_recipe_rarity_combo")),
+        crafting_rarity_combo   = combo_box:new(0, get_hash(plugin_label .. "_crafting_rarity_combo")),
+    },
+
+    -- "Always loot" categories — V2 hardcoded these as forced-loot. V3
+    -- exposes them as opt-outs so users can stop picking up keys, glyphs,
+    -- xp motes, etc. on alts where they don't care.
+    always = {
+        tree                     = tree_node:new(1),
+        uber_toggle              = checkbox:new(true, get_hash(plugin_label .. "_uber_toggle")),
+        keys_toggle              = checkbox:new(true, get_hash(plugin_label .. "_keys_toggle")),
+        xp_powerup_toggle        = checkbox:new(true, get_hash(plugin_label .. "_xp_powerup_toggle")),
+        glyph_drop_toggle        = checkbox:new(true, get_hash(plugin_label .. "_glyph_drop_toggle")),
+        misc_trinkets_toggle     = checkbox:new(true, get_hash(plugin_label .. "_misc_trinkets_toggle")),
+        boss_drops_toggle        = checkbox:new(true, get_hash(plugin_label .. "_boss_drops_toggle")),
+        boss_drops_rarity_combo  = combo_box:new(0,   get_hash(plugin_label .. "_boss_drops_rarity_combo")),
     },
 
     charm = {
@@ -144,35 +183,48 @@ end
 function gui.render()
     local e = gui.elements
 
+    local catalog_loaded = ItemFilter._catalog_loaded
     local catalog_status
-    if ItemFilter._catalog_loaded then
+    if catalog_loaded then
         catalog_status = "catalog: v" .. tostring(ItemFilter._items_version)
             .. " (" .. _catalog_age_str() .. ")"
     else
-        catalog_status = "catalog: NOT LOADED"
+        catalog_status = "!! CATALOG NOT LOADED — run Updater.bat !!"
     end
     if not e.main_tree:push("LooteerV3 | " .. catalog_status) then return end
 
     e.main_toggle:render("Enable", "Toggles the main module on/off")
 
-    -- Catalog toggle: loads/unloads the local data/items.lua.
-    -- On the first render frame after auto-load we skip the action so the auto-loaded
-    -- catalog isn't immediately unloaded by a stale checkbox state.
-    local _skip_action = not _cat_synced
-    if not _cat_synced then _cat_synced = true end
+    -- Load / reload catalog. Click-to-reload pattern: trigger on the
+    -- false->true transition so the action only fires once per click
+    -- rather than every frame. If the framework supports :set(), we reset
+    -- the checkbox so it visually acts like a button; if not, it stays
+    -- checked until the user unchecks it (next reload re-arms on the
+    -- following check). Label changes between "Load" and "Reload" based
+    -- on current catalog state so the button is obviously useful in both.
+    local catalog_btn_label = catalog_loaded and "Reload Catalog" or "Load Catalog"
+    local catalog_btn_tip   = catalog_loaded
+        and "Re-read data/items.lua from disk. Updater.bat refreshes that file "
+            .. "every 60s while running; click here to pick up the new version "
+            .. "without restarting the script."
+        or  "Read data/items.lua from disk. The file ships with the repo, so "
+            .. "this normally succeeds on the first click. If it doesn't, run "
+            .. "Updater.bat to fetch it from the cloud server."
+    e.reload_catalog_toggle:render(catalog_btn_label, catalog_btn_tip)
+    local now_reload = e.reload_catalog_toggle:get()
+    if now_reload and not _last_reload_state then
+        ItemFilter.load_catalog()
+        pcall(function() e.reload_catalog_toggle:set(false) end)
+        catalog_loaded = ItemFilter._catalog_loaded
+    end
+    _last_reload_state = e.reload_catalog_toggle:get()
 
-    local was_loaded = ItemFilter._catalog_loaded
-    e.catalog_toggle:render("Use Cloud Item Catalog",
-        "Load data/items.lua for accurate item classification. "
-        .. "Auto-loads on startup if the file exists. "
-        .. "Uncheck to revert to built-in defaults. Run Updater.bat to refresh data.")
-    local want_loaded = e.catalog_toggle:get()
-    if not _skip_action then
-        if want_loaded and not was_loaded then
-            ItemFilter.load_catalog()
-        elseif not want_loaded and was_loaded then
-            ItemFilter.unload_catalog()
-        end
+    -- Catalog is mandatory. Without it, hide the rest of the UI so users
+    -- can't accidentally configure settings against an empty catalog and
+    -- expect loot to happen.
+    if not catalog_loaded then
+        e.main_tree:pop()
+        return
     end
 
     -- Web config toggle: load data/config.lua and apply over GUI settings each frame
@@ -293,43 +345,108 @@ function gui.render()
         e.affix.tree:pop()
     end
 
+    if e.always.tree:push("Always-Loot Categories") then
+        e.always.uber_toggle:render("Uber Uniques",
+            "Pickup ubers (Tyrael's Might, Harlequin Crest, etc.). Default ON.")
+        e.always.boss_drops_toggle:render("Boss Drops",
+            "Pickup boss-fight world drops (Boss_Flippy, Spirit Heart). Default ON.")
+        e.always.boss_drops_rarity_combo:render("  Boss Drop Rarity", RARITIES,
+            "Minimum rarity for boss drops.")
+        e.always.misc_trinkets_toggle:render("Misc Trinkets",
+            "Pickup small misc drops (Flippy_Misc). Default ON.")
+        e.always.xp_powerup_toggle:render("XP Powerups",
+            "Pickup experience motes / XP power-ups. Default ON.")
+        e.always.glyph_drop_toggle:render("Glyph Drops",
+            "Pickup paragon glyphs that drop in nightmare dungeons. Default ON.")
+        e.always.keys_toggle:render("Keys",
+            "Pickup whispering / dungeon keys. Default ON.")
+        e.always.tree:pop()
+    end
+
     if e.types.tree:push("Item Types") then
         e.types.quest_toggle:render("Quest Items",
-            "Pickup quest objectives and dungeon items.")
-        e.types.crafting_toggle:render("Crafting Items",
-            "Pickup crafting materials and recipes.")
-        e.types.boss_toggle:render("Boss Items",
-            "Pickup boss summon materials.")
-        e.types.scroll_toggle:render("Scrolls",
-            "Pickup scrolls.")
-        e.types.sigil_toggle:render("Nightmare Sigils",
-            "Pickup nightmare dungeon sigils.")
-        e.types.compass_toggle:render("Horde Compasses",
-            "Pickup horde compasses.")
-        e.types.tribute_toggle:render("Tributes",
-            "Pickup undercity tributes.")
-        e.types.rune_toggle:render("Runes",
-            "Pickup runes.")
+            "Pickup quest objectives and dungeon items. No rarity filter — "
+            .. "quest items are looted in full when this is on.")
+
+        e.types.crafting_toggle:render("Crafting Materials",
+            "Pickup raw crafting materials (essences, ores, horadric mats).")
+        e.types.crafting_rarity_combo:render("  Crafting Rarity", RARITIES,
+            "Minimum rarity for crafting materials.")
+
+        e.types.recipe_toggle:render("Recipes / Manuals",
+            "Pickup tempering manuals, books, mount items. Independent of Crafting Materials.")
+        e.types.recipe_rarity_combo:render("  Recipe Rarity", RARITIES,
+            "Minimum rarity for recipes/manuals.")
+
+        e.types.boss_toggle:render("Boss Materials",
+            "Pickup boss summon materials (Living Steel, lair keys, husks, etc).")
         e.types.event_toggle:render("Event Items",
             "Pickup event items (if inventory not full).")
-        e.types.cinders_toggle:render("Cinders",
-            "Pickup cinders.")
-        e.types.heavenly_sigil_toggle:render("Heavenly Sigils",
-            "Pickup heavenly sigils (if consumable inventory not full).")
-        e.types.gemstone_toggle:render("Gemstones",
-            "Pickup gems and gemstones.")
         e.types.goblin_cache_toggle:render("Goblin Cache",
             "Pickup treasure goblin cache bags.")
         e.types.obols_toggle:render("Obols",
             "Pickup obols.")
+        e.types.cinders_toggle:render("Cinders",
+            "Pickup cinders.")
+        e.types.heavenly_sigil_toggle:render("Heavenly Sigils",
+            "Pickup heavenly sigils (if consumable inventory not full).")
+
+        -- Categories with optional rarity filters: pair the toggle with a
+        -- min-rarity combo immediately below.
+        e.types.scroll_toggle:render("Scrolls",
+            "Pickup scrolls (Scroll_Of_*).")
+        e.types.scroll_rarity_combo:render("  Scroll Rarity", RARITIES,
+            "Minimum rarity for scrolls. Set to Common to loot all.")
+
+        e.types.cache_toggle:render("Caches",
+            "Pickup treasure / reward caches.")
+        e.types.cache_rarity_combo:render("  Cache Rarity", RARITIES,
+            "Minimum rarity for caches.")
+
+        e.types.sigil_toggle:render("Nightmare Sigils",
+            "Pickup nightmare dungeon sigils.")
+        e.types.sigil_rarity_combo:render("  Sigil Rarity", RARITIES,
+            "Minimum rarity for nightmare sigils.")
+
+        e.types.compass_toggle:render("Horde Compasses",
+            "Pickup horde compasses (BSK_Sigil).")
+        e.types.compass_rarity_combo:render("  Compass Rarity", RARITIES,
+            "Minimum rarity for horde compasses.")
+
+        e.types.tribute_toggle:render("Tributes",
+            "Pickup undercity tributes.")
+        e.types.tribute_rarity_combo:render("  Tribute Rarity", RARITIES,
+            "Minimum rarity for tributes.")
+
+        e.types.rune_toggle:render("Runes",
+            "Pickup runes (Generic_Rune_*, Socketables).")
+        e.types.rune_rarity_combo:render("  Rune Rarity", RARITIES,
+            "Minimum rarity for runes.")
+
+        e.types.gemstone_toggle:render("Gemstones",
+            "Pickup gems and gemstones.")
+        e.types.gemstone_rarity_combo:render("  Gemstone Rarity", RARITIES,
+            "Minimum rarity for gemstones.")
+
+        -- Consumables hidden in UI — D4 removed the elixir/incense/potion
+        -- pickup loop these targeted. Uncomment to bring them back; the
+        -- settings + loot-engine plumbing is still in place behind them.
+        --[[
+        e.types.consumable_toggle:render("Consumables",
+            "Pickup generic consumables (potions, incense). Skips full inventories.")
+        e.types.consumable_rarity_combo:render("  Consumable Rarity", RARITIES,
+            "Minimum rarity for consumables.")
+        --]]
+
         e.types.tree:pop()
     end
 
     if e.charm.tree:push("Charm Settings") then
         e.charm.toggle:render("Pickup Charms",
             "Enable pickup of charms (Generic_Charm_*).")
-        e.charm.rarity_combo:render("Charm Rarity", RARITIES,
-            "Minimum rarity for charms. Independent of the General Rarity setting.")
+        e.charm.rarity_combo:render("Charm Rarity", CHARM_RARITIES,
+            "Minimum rarity for charms. Independent of the General Rarity setting. "
+            .. "Charms specifically can drop at Set tier (green).")
         e.charm.tree:pop()
     end
 

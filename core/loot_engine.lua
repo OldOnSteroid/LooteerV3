@@ -10,6 +10,10 @@ local function ga_setting_for_slot(slot, rarity, s)
 end
 
 function LootEngine.check_want_item(item, ignore_distance)
+    -- Catalog is mandatory. Without it we have no name patterns, no group
+    -- mapping, no special tables — refuse to loot rather than half-classify.
+    if not ItemFilter._catalog_loaded then return false end
+
     local info, id, skin, rarity = ItemFilter.get_info(item)
     if not info then return false end
 
@@ -21,13 +25,17 @@ function LootEngine.check_want_item(item, ignore_distance)
     local cat = ItemFilter.classify(item)
     if not cat then return false end
 
-    -- ── Always loot ────────────────────────────────────────────────
-    if cat == "uber"          then return true end
-    if cat == "keys"          then return true end
-    if cat == "misc_trinkets" then return true end
-    if cat == "xp_powerup"   then return true end
-    if cat == "tribute_drop"  then return true end
-    if cat == "glyph_drop"   then return true end
+    -- ── Always-loot categories (now opt-out via toggle) ────────────
+    if cat == "uber"          then return s.uber          ~= false end
+    if cat == "keys"          then return s.keys_loot     ~= false end
+    if cat == "misc_trinkets" then return s.misc_trinkets ~= false end
+    if cat == "xp_powerup"    then return s.xp_powerup    ~= false end
+    if cat == "glyph_drop"    then return s.glyph_drop    ~= false end
+    if cat == "boss_drops" then
+        if s.boss_drops == false then return false end
+        if rarity < (s.boss_drops_rarity or 0) then return false end
+        return true
+    end
 
     -- ── Toggled / conditional ──────────────────────────────────────
     if cat == "boss_material" then return s.boss_items end
@@ -39,17 +47,26 @@ function LootEngine.check_want_item(item, ignore_distance)
 
     if cat == "goblin_cache" then return s.goblin_cache end
     if cat == "obol_bag"     then return s.obols end
-    if cat == "quest"        then return s.quest_items end
-    if cat == "crafting"     then return s.crafting_items end
     if cat == "cinders"      then return s.cinders end
 
+    if cat == "quest" then return s.quest_items end
+
+    if cat == "crafting" then
+        if not s.crafting_items then return false end
+        if rarity < (s.crafting_rarity or 0) then return false end
+        return true
+    end
+
     if cat == "cache" then
+        if s.cache == false then return false end
+        if rarity < (s.cache_rarity or 0) then return false end
         if not Utils.is_inventory_full() then return true end
         return false
     end
 
     if cat == "scroll" then
         if not s.scroll then return false end
+        if rarity < (s.scroll_rarity or 0) then return false end
         if not Utils.is_consumable_inventory_full() or
             Utils.is_lowest_stack_below(get_local_player():get_consumable_items(), id, 20, info:get_stack_count()) then
             return true
@@ -62,12 +79,17 @@ function LootEngine.check_want_item(item, ignore_distance)
     end
 
     if cat == "sigil" then
-        return s.sigils and not Utils.is_sigil_inventory_full()
+        if not s.sigils then return false end
+        if rarity < (s.sigil_rarity or 0) then return false end
+        return not Utils.is_sigil_inventory_full()
     end
 
     if cat == "tribute" or cat == "compass" then
-        local flag = (cat == "tribute") and s.tribute or s.compass
+        local flag       = (cat == "tribute") and s.tribute or s.compass
+        local min_rarity = (cat == "tribute") and (s.tribute_rarity or 0)
+                                              or  (s.compass_rarity or 0)
         if not flag then return false end
+        if rarity < min_rarity then return false end
         if not Utils.is_sigil_inventory_full() or
             Utils.is_lowest_stack_below(get_local_player():get_dungeon_key_items(), id, 99, info:get_stack_count()) then
             return true
@@ -77,6 +99,7 @@ function LootEngine.check_want_item(item, ignore_distance)
 
     if cat == "rune" then
         if not s.rune then return false end
+        if rarity < (s.rune_rarity or 0) then return false end
         if not Utils.is_socketable_inventory_full() or
             Utils.is_lowest_stack_below(get_local_player():get_socketable_items(), id, 100, info:get_stack_count()) then
             return true
@@ -86,6 +109,7 @@ function LootEngine.check_want_item(item, ignore_distance)
 
     if cat == "gemstone" then
         if not s.gemstone then return false end
+        if rarity < (s.gemstone_rarity or 0) then return false end
         if not Utils.is_socketable_inventory_full() or
             Utils.is_lowest_stack_below(get_local_player():get_socketable_items(), id, 99, info:get_stack_count()) then
             return true
@@ -93,8 +117,20 @@ function LootEngine.check_want_item(item, ignore_distance)
         return false
     end
 
+    if cat == "consumable" then
+        if not s.consumable then return false end
+        if rarity < (s.consumable_rarity or 0) then return false end
+        if not Utils.is_consumable_inventory_full() or
+            Utils.is_lowest_stack_below(get_local_player():get_consumable_items(), id, 99, info:get_stack_count()) then
+            return true
+        end
+        return false
+    end
+
     if cat == "recipe" then
-        return s.crafting_items and not Utils.is_inventory_full()
+        if not s.recipe then return false end
+        if rarity < (s.recipe_rarity or 0) then return false end
+        return not Utils.is_inventory_full()
     end
 
     if cat == "charm" then

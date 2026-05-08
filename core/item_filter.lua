@@ -1,5 +1,10 @@
--- Primary: catalog lookup by sno_id  (cloud-downloaded data/items.lua)
--- Fallback: skin_name pattern matching (same as V2 for uncatalogued items)
+-- The cloud catalog (data/items.lua) is REQUIRED for V3 to operate. The
+-- repo ships a pre-downloaded copy so a fresh checkout works immediately;
+-- Updater.bat keeps it fresh from the server. If the file is missing the
+-- script refuses to loot — see core/loot_engine.lua.
+--
+-- defaults.lua remains as a structural fallback only (uber list, empty
+-- catalog, empty name_patterns) so missing-file cases don't crash.
 
 local defaults = require("data.defaults")
 local Items    = defaults
@@ -21,75 +26,64 @@ function ItemFilter.load_catalog()
         for _ in pairs(cloud.catalog or {}) do count = count + 1 end
         console.print("[LooteerV3] Catalog loaded: v" .. ItemFilter._items_version
             .. " (" .. tostring(count) .. " entries)")
-    else
-        Items = defaults
-        ItemFilter._items_version    = "not loaded"
-        ItemFilter._catalog_loaded   = false
-        ItemFilter._catalog_loaded_at = nil
-        console.print("[LooteerV3] Catalog load failed — run Updater.bat then try again.")
+        return true
     end
-end
-
-function ItemFilter.unload_catalog()
-    package.loaded["data.items"] = nil
     Items = defaults
-    ItemFilter._items_version    = "not loaded"
-    ItemFilter._catalog_loaded   = false
+    ItemFilter._items_version     = "not loaded"
+    ItemFilter._catalog_loaded    = false
     ItemFilter._catalog_loaded_at = nil
-    console.print("[LooteerV3] Catalog unloaded — using defaults.")
+    console.print("[LooteerV3] CATALOG NOT LOADED — looting is disabled. " ..
+        "Run Updater.bat to fetch data/items.lua from the cloud.")
+    return false
 end
 
--- Auto-load on startup if the local file already exists
-do
-    local ok, cloud = pcall(require, "data.items")
-    if ok and cloud and type(cloud) == "table" then
-        ItemFilter.load_catalog()
-    end
-end
+-- Try to load on script startup. data/items.lua ships with the repo, so
+-- this normally succeeds the first time. If somehow missing, the user
+-- gets a console warning and the loot engine refuses to act until they
+-- run Updater.bat and hit Reload Catalog in the GUI.
+ItemFilter.load_catalog()
 
--- Skin patterns for items not covered by the catalog
-local SKIN = {
-    sigil         = { "Nightmare_Sigil", "S07_WitcherSigil", "S07_DRLG_Sigil", "S09_Prop_Astaroth_NMD" },
-    compass       = { "BSK_Sigil" },
-    tribute       = { "Undercity_Tribute" },
-    quest         = { "Global", "Glyph", "QST", "DGN", "pvp_currency", "S07_Witch_Bonus", "S09_Arcana", "S11_MemoryFragment" },
-    obol_bag      = { "GamblingCurrency_Key" },
-    crafting      = { "CraftingMaterial", "Crafting_Legendary", "Horadric_", "Ore_" },
-    keys          = { "Flippy_[Kk]eys", "S13_Prop_Dungeon_Key_Sigil" },
-    boss_drops    = { "Boss_Flippy", "S08_Prop_Spirit_Heart" },
-    xp_powerup    = { "Experience_PowerUp" },
-    goblin_cache  = { "Treasure_Reward_Cache_GoblinEvent" },
-    cache         = { "Treasure_Reward_Cache", "Item_Cache" },
-    glyph_drop    = { "Paragon_Glyph" },
-    charm         = { "Generic_Charm_" },
-    cube          = { "HoradricCube_" },
-    seal          = { "Talisman_Seal" },
-    recipe        = { "Tempering_Recipe", "Item_Book_Generic", "Item_Book_Horadrim", "mnt_amor", "MountReins" },
-    cinders       = { "Test_BloodMoon_Currency" },
-    heavenly_sigil= { "S11_Heavenly_Sigil" },
-    scroll        = { "Scroll_Of" },
-    rune          = { "Generic_Rune", "S07_Socketable" },
-    gemstone      = { "Item_Gemstone", "Gem_" },
-    misc_trinkets = { "Flippy_Misc" },
-    tribute_drop  = { "Undercity_Tribute" },
-}
+-- Name-pattern fallback comes from the server-emitted Items.name_patterns
+-- table — never hardcoded here. To add or change patterns, edit the
+-- pipeline on the server. The client just walks the list in order.
 
+-- Maps the catalog's `g` group key onto the loot-engine category string.
+-- Catalog group keys are produced server-side by pipeline.py — keep this
+-- table in sync with ITEM_TYPE_GROUPS / NAME_PATTERNS over there.
 local GROUP_CATEGORY = {
+    -- Equipment buckets (stay as "equipment"; slot lookup is separate)
     weapon="equipment", offhand="equipment", armor="equipment",
     jewelry="equipment", unique="equipment",
-    gem="gemstone", rune="rune", crafting_material="crafting",
-    crafting_recipe="recipe", cache="cache", trophy="charm",
-    consumable="consumable", horadric_seal="seal",
-    essence="crafting", sigil="sigil", misc="misc",
+    -- Loot categories (1:1 passthrough — server emits the category name)
+    cube="cube", xp_powerup="xp_powerup", keys="keys",
+    obol_bag="obol_bag", goblin_cache="goblin_cache",
+    charm="charm", seal="seal", sigil="sigil",
+    compass="compass", heavenly_sigil="heavenly_sigil",
+    glyph_drop="glyph_drop", boss_drops="boss_drops",
+    misc_trinkets="misc_trinkets",
+    tribute="tribute", quest="quest", cinders="cinders",
+    scroll="scroll", rune="rune", gemstone="gemstone",
+    recipe="recipe", crafting="crafting", cache="cache",
+    consumable="consumable", misc="misc",
+    -- Legacy / Wowhead aliases kept for catalogs predating the rename
+    gem="gemstone", trophy="charm", horadric_seal="seal",
+    crafting_material="crafting", crafting_recipe="recipe",
+    essence="crafting",
 }
 
 function ItemFilter.get_items() return Items end
 
-local function skin_match(skin, type_name)
-    for _, p in ipairs(SKIN[type_name] or {}) do
-        if skin:find(p) then return true end
+-- Walk the server-supplied name_patterns table in order. Each entry is
+-- `{g="<group>", p="<lua_pattern>"}`. First match wins. Returns the group
+-- key (which then runs through GROUP_CATEGORY) or nil.
+local function name_pattern_match(skin)
+    local list = Items.name_patterns
+    if not list or skin == "" then return nil end
+    for i = 1, #list do
+        local e = list[i]
+        if e and e.p and skin:find(e.p) then return e.g end
     end
-    return false
+    return nil
 end
 
 function ItemFilter.get_info(item)
@@ -112,9 +106,12 @@ function ItemFilter.classify(item)
         return GROUP_CATEGORY[entry.g] or "equipment"
     end
 
-    -- Skin-name fallback (handles anything not yet in the catalog)
-    for cat in pairs(SKIN) do
-        if skin_match(skin, cat) then return cat end
+    -- Items not in the catalog (runtime-only drops the static d4data dump
+    -- doesn't include — compass, heavenly sigil, etc.). Use the patterns
+    -- the server ships in items.lua. No hardcoded patterns live here.
+    local pattern_group = name_pattern_match(skin)
+    if pattern_group then
+        return GROUP_CATEGORY[pattern_group] or pattern_group
     end
 
     if rarity > 0 and (skin:find("Base") or skin:find("Amulet") or skin:find("Ring")) then
