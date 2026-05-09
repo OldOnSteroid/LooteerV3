@@ -5,6 +5,7 @@ function Utils.distance_to(obj)
 end
 
 function Utils.get_greater_affix_count(display_name)
+    if not display_name then return 0 end
     local count = 0
     for _ in display_name:gmatch("GreaterAffix") do count = count + 1 end
     return count
