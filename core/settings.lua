@@ -100,7 +100,7 @@ local settings = {
     unique_crossbow_ga_count=0,   unique_glaive_ga_count=0,
     unique_quarterstaff_ga_count=0,
     -- special item types
-    charm=false, charm_rarity=0, charm_ga_count=0,
+    charm=false, charm_rarity=0, charm_ga_count=0, charm_ancestral_only=false,
     cube=false,  cube_rarity=0,
     seal=false,  seal_rarity=0,
     -- debug
@@ -215,9 +215,10 @@ function Settings.update()
         boss_drops_rarity = rarity_threshold(e.always.boss_drops_rarity_combo:get()),
         class_powerup = e.always.class_powerup_toggle:get(),
 
-        charm          = e.charm.toggle:get(),
-        charm_rarity   = charm_rarity_threshold(e.charm.rarity_combo:get()),
-        charm_ga_count = e.charm.ga_slider:get(),
+        charm                = e.charm.toggle:get(),
+        charm_rarity         = charm_rarity_threshold(e.charm.rarity_combo:get()),
+        charm_ga_count       = e.charm.ga_slider:get(),
+        charm_ancestral_only = e.charm.ancestral_toggle:get(),
         cube         = e.cube.toggle:get(),
         cube_rarity  = rarity_threshold(e.cube.rarity_combo:get()),
         seal         = e.seal.toggle:get(),

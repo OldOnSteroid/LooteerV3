@@ -136,6 +136,7 @@ function LootEngine.check_want_item(item, ignore_distance)
 
     if cat == "charm" then
         if not s.charm or rarity < s.charm_rarity then return false end
+        if s.charm_ancestral_only and not item:is_ancestral() then return false end
         if s.charm_ga_count > 0 then
             local ga = Utils.get_greater_affix_count(info:get_display_name())
             if ga < s.charm_ga_count then return false end
