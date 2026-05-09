@@ -162,6 +162,13 @@ function LootEngine.check_want_item(item, ignore_distance)
 
     if cat == "fish" then
         if not s.fish then return false end
+        -- GoFish integration: skip fish we've already registered in its local
+        -- catalog. Predicate is gated by GoFish's own toggle and returns false
+        -- when the integration is off, so Looter falls through to default
+        -- behavior when GoFish isn't loaded or the toggle is disabled.
+        if _G.gofish and _G.gofish.is_fish_learned and _G.gofish.is_fish_learned(id) then
+            return false
+        end
         if rarity >= 6 then return true end  -- unique/mythic always loot when fish is enabled
         if rarity < (s.fish_rarity or 0) then return false end
         return not Utils.is_inventory_full()
