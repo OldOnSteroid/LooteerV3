@@ -181,6 +181,16 @@ function LootEngine.check_want_item(item, ignore_distance)
         end
 
         if ga < need then return false end
+    elseif rarity >= 3 then
+        if s.rare_ga_count > 0 then
+            local ga = Utils.get_greater_affix_count(info:get_display_name())
+            if ga < s.rare_ga_count then return false end
+        end
+    elseif rarity >= 1 then
+        if s.magic_ga_count > 0 then
+            local ga = Utils.get_greater_affix_count(info:get_display_name())
+            if ga < s.magic_ga_count then return false end
+        end
     end
 
     return true

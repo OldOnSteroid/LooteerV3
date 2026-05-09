@@ -35,6 +35,7 @@ local settings = {
     enabled = false, looting = false,
     custom_toggle = false,
     behavior = 0, rarity = 0, distance = 2, loot_priority = 0,
+    magic_ga_count = 0, rare_ga_count = 0,
     ga_count = 0, unique_ga_count = 0, uber_unique_ga_count = 0,
     quest_items = false, crafting_items = false, cinders = false,
     heavenly_sigil = false, gemstone = false, boss_items = false,
@@ -115,6 +116,8 @@ function Settings.update()
         distance     = e.general.distance_slider:get(),
         loot_priority= e.general.loot_priority_combo:get(),
 
+        magic_ga_count      = e.affix.magic_greater_affix_slider:get(),
+        rare_ga_count       = e.affix.rare_greater_affix_slider:get(),
         ga_count            = e.affix.greater_affix_slider:get(),
         unique_ga_count     = e.affix.unique_greater_affix_slider:get(),
         uber_unique_ga_count= e.affix.uber_unique_greater_affix_slider:get(),

@@ -34,6 +34,8 @@ gui.elements = {
 
     affix = {
         tree                             = tree_node:new(1),
+        magic_greater_affix_slider       = slider_int:new(0, 2, 0, get_hash(plugin_label .. "_magic_greater_affix_slider")),
+        rare_greater_affix_slider        = slider_int:new(0, 4, 0, get_hash(plugin_label .. "_rare_greater_affix_slider")),
         greater_affix_slider             = slider_int:new(0, 3, 0, get_hash(plugin_label .. "_greater_affix_slider")),
         unique_greater_affix_slider      = slider_int:new(0, 4, 0, get_hash(plugin_label .. "_unique_greater_affix_slider")),
         uber_unique_greater_affix_slider = slider_int:new(0, 4, 0, get_hash(plugin_label .. "_uber_unique_greater_affix_slider")),
@@ -302,6 +304,10 @@ function gui.render()
     end
 
     if e.affix.tree:push("Affix Settings") then
+        e.affix.magic_greater_affix_slider:render("Magic GA Count",
+            "Minimum GAs to consider picking up magic items (0 = ignore GA)")
+        e.affix.rare_greater_affix_slider:render("Rare GA Count",
+            "Minimum GAs to consider picking up rare items (0 = ignore GA)")
         e.affix.greater_affix_slider:render("Legendary GA Count",
             "Minimum GAs to consider picking up legendaries")
         e.affix.unique_greater_affix_slider:render("Unique GA Count",
