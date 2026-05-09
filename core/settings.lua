@@ -40,7 +40,7 @@ local settings = {
     heavenly_sigil = false, gemstone = false, boss_items = false,
     sigils = false, compass = false, rune = false, tribute = false,
     scroll = false, event_items = true, goblin_cache = true, obols = true,
-    cache = true, consumable = false, recipe = false, trophy = false,
+    cache = true, consumable = true,  recipe = false, trophy = false,
     -- Always-loot categories (opt-out — defaults are TRUE because these are
     -- high-value; users uncheck to skip them)
     uber          = true,
@@ -61,7 +61,9 @@ local settings = {
     gemstone_rarity    = 0,
     cache_rarity       = 0,
     scroll_rarity      = 0,
-    consumable_rarity  = 0,
+    consumable_rarity  = 3,   -- Rare (combo idx 2 → runtime rarity 3) — covers
+                              -- Profane Mindcage, Seething Opals, X1 Elixirs/Incense
+                              -- without scooping every basic potion.
     recipe_rarity      = 0,
     crafting_rarity    = 0,
     boss_drops_rarity  = 0,

@@ -116,7 +116,7 @@ gui.elements = {
         heavenly_sigil_toggle = checkbox:new(false, get_hash(plugin_label .. "_heavenly_sigil_toggle")),
         gemstone_toggle       = checkbox:new(false, get_hash(plugin_label .. "_gemstone_toggle")),
         cache_toggle          = checkbox:new(true,  get_hash(plugin_label .. "_cache_toggle")),
-        consumable_toggle     = checkbox:new(false, get_hash(plugin_label .. "_consumable_toggle")),
+        consumable_toggle     = checkbox:new(true,  get_hash(plugin_label .. "_consumable_toggle")),
         recipe_toggle         = checkbox:new(false, get_hash(plugin_label .. "_recipe_toggle")),
         trophy_toggle         = checkbox:new(false, get_hash(plugin_label .. "_trophy_toggle")),
         -- Per-type minimum-rarity combos (0 = loot any rarity)
@@ -127,7 +127,7 @@ gui.elements = {
         gemstone_rarity_combo   = combo_box:new(0, get_hash(plugin_label .. "_gemstone_rarity_combo")),
         cache_rarity_combo      = combo_box:new(0, get_hash(plugin_label .. "_cache_rarity_combo")),
         scroll_rarity_combo     = combo_box:new(0, get_hash(plugin_label .. "_scroll_rarity_combo")),
-        consumable_rarity_combo = combo_box:new(0, get_hash(plugin_label .. "_consumable_rarity_combo")),
+        consumable_rarity_combo = combo_box:new(2, get_hash(plugin_label .. "_consumable_rarity_combo")),
         recipe_rarity_combo     = combo_box:new(0, get_hash(plugin_label .. "_recipe_rarity_combo")),
         crafting_rarity_combo   = combo_box:new(0, get_hash(plugin_label .. "_crafting_rarity_combo")),
     },
@@ -471,15 +471,16 @@ function gui.render()
             "Pickup cosmetic trophy items (back trophies, mount trophies, banners). "
             .. "Default OFF — these don't affect gameplay.")
 
-        -- Consumables hidden in UI — D4 removed the elixir/incense/potion
-        -- pickup loop these targeted. Uncomment to bring them back; the
-        -- settings + loot-engine plumbing is still in place behind them.
-        --[[
+        -- Consumables — covers high-value uniques like Profane Mindcage
+        -- (boss-summon stim) and other rare/legendary consumables. Default
+        -- rarity gate is Legendary so you don't pick up junk potions.
         e.types.consumable_toggle:render("Consumables",
-            "Pickup generic consumables (potions, incense). Skips full inventories.")
+            "Pickup consumables (e.g. Profane Mindcage, Seething Opals, "
+            .. "Elixirs, Incense). Skips full consumable inventories.")
         e.types.consumable_rarity_combo:render("  Consumable Rarity", RARITIES,
-            "Minimum rarity for consumables.")
-        --]]
+            "Minimum rarity for consumables. Default Rare — covers Profane "
+            .. "Mindcage and the X1 elixirs/incense without grabbing every "
+            .. "basic potion. Drop to Common to scoop everything.")
 
         e.types.tree:pop()
     end
