@@ -160,6 +160,13 @@ function LootEngine.check_want_item(item, ignore_distance)
         return not Utils.is_inventory_full()
     end
 
+    if cat == "fish" then
+        if not s.fish then return false end
+        if rarity >= 6 then return true end  -- unique/mythic always loot when fish is enabled
+        if rarity < (s.fish_rarity or 0) then return false end
+        return not Utils.is_inventory_full()
+    end
+
     if cat == "misc" then return false end
 
     -- ── Equipment ─────────────────────────────────────────────────

@@ -103,6 +103,7 @@ local settings = {
     charm=false, charm_rarity=0, charm_ga_count=0,
     cube=false,  cube_rarity=0,
     seal=false,  seal_rarity=0,
+    fish=false,  fish_rarity=0,
     -- debug
     draw_wanted_items=false, scan_items=false, draw_path=false,
 }
@@ -222,6 +223,8 @@ function Settings.update()
         cube_rarity  = rarity_threshold(e.cube.rarity_combo:get()),
         seal         = e.seal.toggle:get(),
         seal_rarity  = rarity_threshold(e.seal.rarity_combo:get()),
+        fish         = e.fish.toggle:get(),
+        fish_rarity  = rarity_threshold(e.fish.rarity_combo:get()),
 
         draw_wanted_items = e.debug.draw_wanted_toggle:get(),
         scan_items        = e.debug.scan_items_toggle:get(),

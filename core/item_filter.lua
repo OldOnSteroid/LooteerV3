@@ -173,7 +173,7 @@ local GROUP_CATEGORY = {
     tribute="tribute", quest="quest", cinders="cinders",
     scroll="scroll", rune="rune", gemstone="gemstone",
     recipe="recipe", crafting="crafting", cache="cache",
-    consumable="consumable", misc="misc",
+    consumable="consumable", misc="misc", fish="fish",
     -- Legacy / Wowhead aliases kept for catalogs predating the rename
     gem="gemstone", horadric_seal="seal",
     crafting_material="crafting", crafting_recipe="recipe",
@@ -212,6 +212,7 @@ function ItemFilter.classify(item)
 
     local entry = Items.catalog[id]
     if entry then
+        if entry.t == "Fish" then return "fish" end
         return GROUP_CATEGORY[entry.g] or "equipment"
     end
 

@@ -13,6 +13,7 @@ local RARITIES  = { "Common", "Magic", "Rare", "Legendary", "Unique" }
 -- Charms can drop at Set tier (Talisman_Charm_Set_*); other categories
 -- can't, so the Set entry only appears in the charm dropdown.
 local CHARM_RARITIES = { "Common", "Magic", "Rare", "Legendary", "Unique", "Set" }
+local FISH_RARITIES  = { "Common", "Magic", "Rare", "Legendary" }
 local BEHAVIORS = { "Always", "Orbwalk" }
 
 gui.elements = {
@@ -166,6 +167,12 @@ gui.elements = {
         tree        = tree_node:new(1),
         toggle      = checkbox:new(false, get_hash(plugin_label .. "_seal_toggle")),
         rarity_combo= combo_box:new(0,    get_hash(plugin_label .. "_seal_rarity_combo")),
+    },
+
+    fish = {
+        tree        = tree_node:new(1),
+        toggle      = checkbox:new(false, get_hash(plugin_label .. "_fish_toggle")),
+        rarity_combo= combo_box:new(0,    get_hash(plugin_label .. "_fish_rarity_combo")),
     },
 
     debug = {
@@ -517,6 +524,14 @@ function gui.render()
         e.seal.rarity_combo:render("Seal Rarity", RARITIES,
             "Minimum rarity for seals.")
         e.seal.tree:pop()
+    end
+
+    if e.fish.tree:push("Fish Settings") then
+        e.fish.toggle:render("Pickup Fish",
+            "Enable pickup of fishing items.")
+        e.fish.rarity_combo:render("Fish Rarity", FISH_RARITIES,
+            "Minimum rarity to loot. Unique (Mythic) fish are always looted when enabled.")
+        e.fish.tree:pop()
     end
 
     if e.debug.tree:push("Debug") then
