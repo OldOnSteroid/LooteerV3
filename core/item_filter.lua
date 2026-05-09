@@ -212,10 +212,6 @@ function ItemFilter.classify(item)
 
     local entry = Items.catalog[id]
     if entry then
-        -- Horadric Jewels occupy a special game slot and their item_info API
-        -- does not support get_display_name() reliably — route them as misc
-        -- so they never reach the equipment GA-check path.
-        if entry.t == "Horadric Jewel" then return "misc" end
         return GROUP_CATEGORY[entry.g] or "equipment"
     end
 
