@@ -1,4 +1,6 @@
-local plugin_label = "LooteerV3"
+local plugin_label   = "LooteerV3"
+local plugin_version = "1.2.1"
+local plugin_author  = "Magoogle"
 local gui = {}
 local ItemFilter = require("core.item_filter")
 
@@ -230,15 +232,15 @@ end
 function gui.render()
     local e = gui.elements
 
+    if not e.main_tree:push("LooteerV3 v" .. plugin_version .. " by " .. plugin_author) then return end
+
     local catalog_loaded = ItemFilter._catalog_loaded
-    local catalog_status
     if catalog_loaded then
-        catalog_status = "catalog: v" .. tostring(ItemFilter._items_version)
-            .. " (" .. _sync_age_str() .. ")"
+        render_menu_header("Catalog: v" .. tostring(ItemFilter._items_version)
+            .. "  (" .. _sync_age_str() .. ")")
     else
-        catalog_status = "!! CATALOG NOT LOADED -- click Load Catalog !!"
+        render_menu_header("!! CATALOG NOT LOADED — click Load Catalog !!")
     end
-    if not e.main_tree:push("LooteerV3 | " .. catalog_status) then return end
 
     e.main_toggle:render("Enable", "Toggles the main module on/off")
 
