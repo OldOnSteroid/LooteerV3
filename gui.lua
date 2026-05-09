@@ -153,6 +153,7 @@ gui.elements = {
         tree        = tree_node:new(1),
         toggle      = checkbox:new(false, get_hash(plugin_label .. "_charm_toggle")),
         rarity_combo= combo_box:new(0,    get_hash(plugin_label .. "_charm_rarity_combo")),
+        ga_slider   = slider_int:new(0, 3, 0, get_hash(plugin_label .. "_charm_ga_slider")),
     },
 
     cube = {
@@ -497,6 +498,8 @@ function gui.render()
         e.charm.rarity_combo:render("Charm Rarity", CHARM_RARITIES,
             "Minimum rarity for charms. Independent of the General Rarity setting. "
             .. "Charms specifically can drop at Set tier (green).")
+        e.charm.ga_slider:render("Charm GA Count",
+            "Minimum GAs to consider picking up a charm (0 = no GA requirement).")
         e.charm.tree:pop()
     end
 
