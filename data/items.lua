@@ -1,9 +1,9 @@
--- Auto-generated 20260509
+-- Auto-generated 20260510
 -- All classification logic is server-managed. The client matches catalog by
 -- sno_id first, then falls back to name_patterns for runtime drops not in
 -- d4data. To add or change a category, edit pipeline.py — never the client.
 local M = {
-    version = "20260509",
+    version = "20260510",
     ubers = {
         [221017] = "Doombringer",
         [223271] = "The Grandfather",
