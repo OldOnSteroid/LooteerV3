@@ -1871,7 +1871,7 @@ local M = {
         [1198958] = {n="Unholy Grail",g="trophy",t="Trophy",r=0},
         [1198963] = {n="Johanna's Armor",g="quest",t="Quest",r=0},
         [1200638] = {n="Pilgrimage End",g="trophy",t="Trophy",r=0},
-        [1201932] = {n="Cinder",g="quest",t="Currency",r=0},
+        [1201932] = {n="Cinder",g="cinders",t="Currency",r=0},
         [1202200] = {n="Dead Sea Vessel",g="trophy",t="Trophy",r=0},
         [1202244] = {n="The Woodsman's Axe",g="quest",t="Quest",r=0},
         [1202517] = {n="Mammotheart",g="weapon",t="Mace2H",r=0},
