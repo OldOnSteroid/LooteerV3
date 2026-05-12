@@ -22,6 +22,16 @@ function LootEngine.check_want_item(item, ignore_distance)
     if not ignore_distance and Utils.distance_to(item) >= s.distance then return false end
     if loot_manager.is_gold(item) or loot_manager.is_potion(item) then return false end
 
+    -- Ingame loot filter override: defer entirely to the game's own filter.
+    -- Skips all rarity / type / GA gates below — if the filter doesn't block
+    -- it, we want it. Inventory-full safety check still applies so we don't
+    -- spin on unreachable equipment.
+    if s.use_ingame_loot_filter then
+        if info:is_filtered_by_loot_filter() then return false end
+        if Utils.is_inventory_full() then return false end
+        return true
+    end
+
     local cat = ItemFilter.classify(item)
     if not cat then return false end
 

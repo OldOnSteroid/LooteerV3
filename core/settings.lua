@@ -105,6 +105,8 @@ local settings = {
     cube=false,  cube_rarity=0,
     seal=false,  seal_rarity=0,
     fish=false,  fish_rarity=0,
+    -- ingame loot filter override
+    use_ingame_loot_filter = false,
     -- debug
     draw_wanted_items=false, scan_items=false, draw_path=false,
 }
@@ -229,6 +231,8 @@ function Settings.update()
         seal_rarity  = rarity_threshold(e.seal.rarity_combo:get()),
         fish         = e.fish.toggle:get(),
         fish_rarity  = rarity_threshold(e.fish.rarity_combo:get()),
+
+        use_ingame_loot_filter = e.ingame_loot_filter_toggle:get(),
 
         draw_wanted_items = e.debug.draw_wanted_toggle:get(),
         scan_items        = e.debug.scan_items_toggle:get(),

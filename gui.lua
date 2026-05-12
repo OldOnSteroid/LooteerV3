@@ -1,5 +1,5 @@
 local plugin_label   = "LooteerV3"
-local plugin_version = "1.2.1"
+local plugin_version = "1.3.1"
 local plugin_author  = "Magoogle"
 local gui = {}
 local ItemFilter = require("core.item_filter")
@@ -26,6 +26,7 @@ gui.elements = {
     -- a reload and immediately reset to false on the next frame.
     reload_catalog_toggle = checkbox:new(false, get_hash(plugin_label .. "_reload_catalog_toggle")),
     web_config_toggle     = checkbox:new(false, get_hash(plugin_label .. "_web_config_toggle")),
+    ingame_loot_filter_toggle = checkbox:new(false, get_hash(plugin_label .. "_ingame_loot_filter_toggle")),
 
     general = {
         tree                    = tree_node:new(1),
@@ -299,6 +300,11 @@ function gui.render()
         Settings._web_config = nil
         console.print("[LooteerV3] Web config disabled — using local GUI settings.")
     end
+
+    e.ingame_loot_filter_toggle:render("Use Ingame Loot Filter",
+        "Override all loot settings and pick up anything the in-game loot filter "
+        .. "doesn't block. When on, rarity / type / GA settings below are ignored — "
+        .. "the game's filter is the sole authority.")
 
     if not e.main_toggle:get() then
         e.main_tree:pop()
