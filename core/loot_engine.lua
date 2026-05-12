@@ -178,7 +178,18 @@ function LootEngine.check_want_item(item, ignore_distance)
 
     -- ── Equipment ─────────────────────────────────────────────────
     if Utils.is_inventory_full() then return false end
-    if rarity < s.rarity         then return false end
+
+    local is_ancestral = info:is_ancestral()
+
+    -- Ancestral normals: bypass rarity threshold for any ancestral item
+    if s.pick_ancestral_normals and is_ancestral then return true end
+
+    -- Ancestral only: skip non-ancestral, with optional unique-tier exemption
+    if s.ancestral_only and not is_ancestral then
+        if not (s.non_ancestral_uniques and rarity >= 6) then return false end
+    end
+
+    if rarity < s.rarity then return false end
 
     if rarity >= 5 then
         local ga   = Utils.get_greater_affix_count(info:get_display_name())
