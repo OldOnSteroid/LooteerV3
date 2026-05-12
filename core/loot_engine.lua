@@ -22,16 +22,6 @@ function LootEngine.check_want_item(item, ignore_distance)
     if not ignore_distance and Utils.distance_to(item) >= s.distance then return false end
     if loot_manager.is_gold(item) or loot_manager.is_potion(item) then return false end
 
-    -- Ingame loot filter override: defer entirely to the game's own filter.
-    -- Skips all rarity / type / GA gates below — if the filter doesn't block
-    -- it, we want it. Inventory-full safety check still applies so we don't
-    -- spin on unreachable equipment.
-    if s.use_ingame_loot_filter then
-        if info:is_filtered_by_loot_filter() then return false end
-        if Utils.is_inventory_full() then return false end
-        return true
-    end
-
     local cat = ItemFilter.classify(item)
     if not cat then return false end
 
@@ -146,6 +136,7 @@ function LootEngine.check_want_item(item, ignore_distance)
 
     if cat == "charm" then
         if not s.charm or rarity < s.charm_rarity then return false end
+        if s.ingame_filter_charm and info:is_filtered_by_loot_filter() then return false end
         if s.charm_ga_count > 0 then
             local ga = Utils.get_greater_affix_count(info:get_display_name())
             if ga < s.charm_ga_count then return false end
@@ -188,17 +179,7 @@ function LootEngine.check_want_item(item, ignore_distance)
 
     -- ── Equipment ─────────────────────────────────────────────────
     if Utils.is_inventory_full() then return false end
-
-    local is_ancestral = info:is_ancestral()
-
-    -- Ancestral normals: bypass rarity threshold for any ancestral item
-    if s.pick_ancestral_normals and is_ancestral then return true end
-
-    -- Ancestral only: skip non-ancestral, with optional unique-tier exemption
-    if s.ancestral_only and not is_ancestral then
-        if not (s.non_ancestral_uniques and rarity >= 6) then return false end
-    end
-
+    if s.use_ingame_loot_filter and info:is_filtered_by_loot_filter() then return false end
     if rarity < s.rarity then return false end
 
     if rarity >= 5 then

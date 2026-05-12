@@ -8,6 +8,7 @@ local ItemFilter = require("core.item_filter")
 -- load_catalog only on the false->true transition (one reload per click)
 -- rather than every frame the box is checked.
 local _last_reload_state = false
+local _last_dump_affixes_state = false
 
 -- Dropdown labels. The combo's index is translated to the actual runtime
 -- rarity threshold by Settings.update (see core/settings.lua).
@@ -33,10 +34,7 @@ gui.elements = {
         behavior_combo          = combo_box:new(0, get_hash(plugin_label .. "_behavior_combo")),
         loot_priority_combo     = combo_box:new(0, get_hash(plugin_label .. "_loot_priority_combo")),
         rarity_combo            = combo_box:new(0, get_hash(plugin_label .. "_rarity_combo")),
-        distance_slider         = slider_int:new(1, 30, 2, get_hash(plugin_label .. "_distance_slider")),
-        ancestral_only_toggle   = checkbox:new(false, get_hash(plugin_label .. "_ancestral_only")),
-        non_anc_uniques_toggle  = checkbox:new(false, get_hash(plugin_label .. "_non_ancestral_uniques")),
-        pick_anc_normals_toggle = checkbox:new(false, get_hash(plugin_label .. "_pick_ancestral_normals")),
+        distance_slider     = slider_int:new(1, 30, 2, get_hash(plugin_label .. "_distance_slider")),
     },
 
     affix = {
@@ -157,10 +155,11 @@ gui.elements = {
     },
 
     charm = {
-        tree        = tree_node:new(1),
-        toggle      = checkbox:new(false, get_hash(plugin_label .. "_charm_toggle")),
-        rarity_combo= combo_box:new(0,    get_hash(plugin_label .. "_charm_rarity_combo")),
-        ga_slider   = slider_int:new(0, 3, 0, get_hash(plugin_label .. "_charm_ga_slider")),
+        tree                = tree_node:new(1),
+        toggle              = checkbox:new(false, get_hash(plugin_label .. "_charm_toggle")),
+        rarity_combo        = combo_box:new(0,    get_hash(plugin_label .. "_charm_rarity_combo")),
+        ga_slider           = slider_int:new(0, 3, 0, get_hash(plugin_label .. "_charm_ga_slider")),
+        ingame_filter_toggle= checkbox:new(false, get_hash(plugin_label .. "_charm_ingame_filter")),
     },
 
     cube = {
@@ -182,10 +181,11 @@ gui.elements = {
     },
 
     debug = {
-        tree               = tree_node:new(1),
-        draw_wanted_toggle = checkbox:new(false, get_hash(plugin_label .. "_draw_wanted_toggle")),
-        scan_items_toggle  = checkbox:new(false, get_hash(plugin_label .. "_scan_items_toggle")),
-        draw_path_toggle   = checkbox:new(false, get_hash(plugin_label .. "_draw_path_toggle")),
+        tree                = tree_node:new(1),
+        draw_wanted_toggle  = checkbox:new(false, get_hash(plugin_label .. "_draw_wanted_toggle")),
+        scan_items_toggle   = checkbox:new(false, get_hash(plugin_label .. "_scan_items_toggle")),
+        draw_path_toggle    = checkbox:new(false, get_hash(plugin_label .. "_draw_path_toggle")),
+        dump_affixes_toggle = checkbox:new(false, get_hash(plugin_label .. "_dump_affixes_toggle")),
     },
 }
 
@@ -301,10 +301,11 @@ function gui.render()
         console.print("[LooteerV3] Web config disabled — using local GUI settings.")
     end
 
-    e.ingame_loot_filter_toggle:render("Use Ingame Loot Filter",
-        "Override all loot settings and pick up anything the in-game loot filter "
-        .. "doesn't block. When on, rarity / type / GA settings below are ignored — "
-        .. "the game's filter is the sole authority.")
+    e.ingame_loot_filter_toggle:render("Use Ingame Loot Filter (Gear)",
+        "Apply the game's loot filter to equipment (weapons, armor, jewelry). "
+        .. "When on, gear that the in-game filter would hide is skipped — "
+        .. "use this to enforce Ancestral-only or other in-game filter rules on drops. "
+        .. "Rarity and GA settings still apply as a floor.")
 
     if not e.main_toggle:get() then
         e.main_tree:pop()
@@ -319,12 +320,6 @@ function gui.render()
         e.general.distance_slider:render("Distance", "Distance from loot to execute pickup")
         e.general.loot_priority_combo:render("Loot Priority", {"Closest First", "Best First"},
             "Select the priority for looting items")
-        e.general.ancestral_only_toggle:render("Ancestral Only",
-            "Only loot equipment that is ancestral. Use with the options below to fine-tune.")
-        e.general.non_anc_uniques_toggle:render("Non-Ancestral Uniques",
-            "When Ancestral Only is on, still loot unique-tier items even if they are not ancestral.")
-        e.general.pick_anc_normals_toggle:render("Pick Ancestral Normals",
-            "Loot any ancestral item regardless of your rarity threshold (e.g. ancestral rares when threshold is Legendary).")
         e.general.tree:pop()
     end
 
@@ -524,6 +519,9 @@ function gui.render()
             .. "Charms specifically can drop at Set tier (green).")
         e.charm.ga_slider:render("Charm GA Count",
             "Minimum GAs to consider picking up a charm (0 = no GA requirement).")
+        e.charm.ingame_filter_toggle:render("Use Ingame Loot Filter",
+            "Apply the game's loot filter to charms/talismans. "
+            .. "Use this to enforce Ancestral-only charm rules via the in-game filter.")
         e.charm.tree:pop()
     end
 
@@ -559,6 +557,58 @@ function gui.render()
         e.debug.draw_path_toggle:render("Draw Path / Target",
             "Show the pathfinder's current target marker and pathing nodes on screen. "
             .. "Off by default — only useful for debugging movement issues.")
+        e.debug.dump_affixes_toggle:render("Dump Ground Item Affixes",
+            "One-shot click: prints get_affixes() output for every ground item "
+            .. "actors_manager can see, so we can confirm whether affix data is "
+            .. "readable on drops before pickup. Resets after firing.")
+        local now_dump = e.debug.dump_affixes_toggle:get()
+        if now_dump and not _last_dump_affixes_state then
+            local Utils = require("utils.utils")
+            local items = actors_manager:get_all_items()
+            local sorted = {}
+            for _, it in pairs(items) do sorted[#sorted+1] = it end
+            table.sort(sorted, function(a, b) return Utils.distance_to(a) < Utils.distance_to(b) end)
+            console.print("[LooteerV3 Affix Dump] === BEGIN (" .. tostring(#sorted) .. " ground items) ===")
+            for _, item in ipairs(sorted) do
+                local info = item:get_item_info()
+                local skin   = (info and info:get_skin_name()) or "?"
+                local rarity = (info and info:get_rarity())    or -1
+                local sno    = (info and info:get_sno_id())    or 0
+                local cat    = ItemFilter.classify(item) or "-"
+                local dist   = Utils.distance_to(item)
+                console.print(string.format("[Affix Dump] %s | r=%d | id=%d | cat=%s | dist=%.1f",
+                    tostring(skin), rarity, sno, tostring(cat), dist))
+
+                local ok, affixes = pcall(function() return item:get_affixes() end)
+                if not ok then
+                    console.print("  get_affixes() ERROR: " .. tostring(affixes))
+                elseif affixes == nil then
+                    console.print("  get_affixes() returned nil")
+                elseif type(affixes) ~= "table" then
+                    console.print("  get_affixes() returned " .. type(affixes) .. " = " .. tostring(affixes))
+                else
+                    local n = 0
+                    for _ in pairs(affixes) do n = n + 1 end
+                    console.print("  get_affixes() count: " .. tostring(n))
+                    for i, affix in pairs(affixes) do
+                        local hash = (type(affix) == "table" and (affix.affix_name_hash or affix.sno_id or affix.id)) or "?"
+                        local name_ok, name = pcall(function() return affix:get_name() end)
+                        local roll_ok, roll = pcall(function() return affix:get_roll() end)
+                        local rmax_ok, rmax = pcall(function() return affix:get_roll_max() end)
+                        local rmin_ok, rmin = pcall(function() return affix:get_roll_min() end)
+                        console.print(string.format("    [%s] hash=%s name=%s roll=%s range=[%s..%s]",
+                            tostring(i), tostring(hash),
+                            name_ok and tostring(name) or "ERR",
+                            roll_ok and tostring(roll) or "ERR",
+                            rmin_ok and tostring(rmin) or "ERR",
+                            rmax_ok and tostring(rmax) or "ERR"))
+                    end
+                end
+            end
+            console.print("[LooteerV3 Affix Dump] === END ===")
+            pcall(function() e.debug.dump_affixes_toggle:set(false) end)
+        end
+        _last_dump_affixes_state = e.debug.dump_affixes_toggle:get()
         e.debug.tree:pop()
     end
 
