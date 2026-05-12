@@ -34,7 +34,10 @@ gui.elements = {
         behavior_combo          = combo_box:new(0, get_hash(plugin_label .. "_behavior_combo")),
         loot_priority_combo     = combo_box:new(0, get_hash(plugin_label .. "_loot_priority_combo")),
         rarity_combo            = combo_box:new(0, get_hash(plugin_label .. "_rarity_combo")),
-        distance_slider     = slider_int:new(1, 30, 2, get_hash(plugin_label .. "_distance_slider")),
+        distance_slider         = slider_int:new(1, 30, 2, get_hash(plugin_label .. "_distance_slider")),
+        ancestral_only_toggle   = checkbox:new(false, get_hash(plugin_label .. "_ancestral_only")),
+        non_anc_uniques_toggle  = checkbox:new(false, get_hash(plugin_label .. "_non_ancestral_uniques")),
+        pick_anc_normals_toggle = checkbox:new(false, get_hash(plugin_label .. "_pick_ancestral_normals")),
     },
 
     affix = {
@@ -320,6 +323,12 @@ function gui.render()
         e.general.distance_slider:render("Distance", "Distance from loot to execute pickup")
         e.general.loot_priority_combo:render("Loot Priority", {"Closest First", "Best First"},
             "Select the priority for looting items")
+        e.general.ancestral_only_toggle:render("Ancestral Only",
+            "Only loot equipment that is ancestral. Use with the options below to fine-tune.")
+        e.general.non_anc_uniques_toggle:render("Non-Ancestral Uniques",
+            "When Ancestral Only is on, still loot unique-tier items even if they are not ancestral.")
+        e.general.pick_anc_normals_toggle:render("Pick Ancestral Normals",
+            "Loot any ancestral item regardless of your rarity threshold (e.g. ancestral rares when threshold is Legendary).")
         e.general.tree:pop()
     end
 
