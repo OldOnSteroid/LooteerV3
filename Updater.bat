@@ -1,6 +1,5 @@
 @echo off
 setlocal EnableDelayedExpansion
-
 :: ============================================================
 :: LooteerV3 - Cloud Updater
 ::
@@ -13,11 +12,19 @@ setlocal EnableDelayedExpansion
 ::
 :: Each successful sync writes data/last_sync.lua with the current
 :: epoch so the V3 GUI header can show "synced Nm ago".
+::
+:: curl flags:
+::   --ssl-no-revoke    : skip Schannel CRL/OCSP revocation checks
+::                        (fixes CRYPT_E_NO_REVOCATION_CHECK when the
+::                        revocation endpoint is unreachable / filtered)
+::   --connect-timeout  : bail on TLS/connect hangs
+::   -m / --max-time    : hard ceiling on total transfer time so a
+::                        stuck call can't wedge the 60s sync loop
 :: ============================================================
-
 set BASE_URL=https://looter.d4data.live
 set DATA_DIR=%~dp0data
 set MODE=%~1
+set CURL_OPTS=--ssl-no-revoke --connect-timeout 10 -m 30
 
 :: -- Generate or load profile key --
 if not exist "%DATA_DIR%\profile.key" (
@@ -29,7 +36,7 @@ set /p PROFILE_KEY=<"%DATA_DIR%\profile.key"
 for /f "tokens=* delims= " %%a in ("!PROFILE_KEY!") do set PROFILE_KEY=%%a
 
 :: -- Register profile with server (idempotent) --
-curl -s -X POST "%BASE_URL%/api/config/register" ^
+curl %CURL_OPTS% -s -X POST "%BASE_URL%/api/config/register" ^
      -H "Content-Type: application/json" ^
      -d "{\"key\":\"!PROFILE_KEY!\",\"label\":\"%COMPUTERNAME%\"}" > nul
 
@@ -67,7 +74,7 @@ goto loop
 :: blocked by an os.execute sandbox).
 :sync_once
 set LOG=%DATA_DIR%\last_sync_log.txt
-> "%LOG%" echo == Updater.bat sync_once ==
+>  "%LOG%" echo == Updater.bat sync_once ==
 >> "%LOG%" echo time      : %DATE% %TIME%
 >> "%LOG%" echo mode      : %MODE%
 >> "%LOG%" echo cwd       : %CD%
@@ -75,12 +82,13 @@ set LOG=%DATA_DIR%\last_sync_log.txt
 >> "%LOG%" echo data_dir  : %DATA_DIR%
 >> "%LOG%" echo base_url  : %BASE_URL%
 >> "%LOG%" echo profile   : !PROFILE_KEY!
+>> "%LOG%" echo curl_opts : %CURL_OPTS%
 
-curl -fsS -o "%DATA_DIR%\items.lua" "%BASE_URL%/d4/items.lua" 2>> "%LOG%"
+curl %CURL_OPTS% -fsS -o "%DATA_DIR%\items.lua" "%BASE_URL%/d4/items.lua" 2>> "%LOG%"
 set ITEMS_OK=%errorlevel%
 >> "%LOG%" echo curl items.lua exit=%ITEMS_OK%
 
-curl -fsS -o "%DATA_DIR%\config.lua" "%BASE_URL%/api/config/!PROFILE_KEY!/config.lua" 2>> "%LOG%"
+curl %CURL_OPTS% -fsS -o "%DATA_DIR%\config.lua" "%BASE_URL%/api/config/!PROFILE_KEY!/config.lua" 2>> "%LOG%"
 >> "%LOG%" echo curl config.lua exit=%errorlevel%
 
 for %%I in ("%DATA_DIR%\items.lua") do >> "%LOG%" echo items.lua_size=%%~zI
@@ -98,5 +106,4 @@ if %ITEMS_OK% equ 0 (
     powershell -NoProfile -Command "$e = [int64]([datetime]::UtcNow - [datetime]'1970-01-01').TotalSeconds; Set-Content -Path '%DATA_DIR%\last_sync.lua' -Value (\"return \" + $e) -Encoding ASCII"
 )
 exit /b 0
-
 endlocal
