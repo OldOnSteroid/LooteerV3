@@ -22,6 +22,9 @@ function Renderer.draw_stuff()
     if Utils.is_sigil_inventory_full() then
         graphics.text_3d("Sigil Full",      vec3:new(ppos:x(), ppos:y(), ppos:z()+3), 20, color_red(255))
     end
+    if Utils.is_talisman_inventory_full() then
+        graphics.text_3d("Talisman Full",   vec3:new(ppos:x(), ppos:y(), ppos:z()+4), 20, color_red(255))
+    end
 
     local s = Settings.get()
 

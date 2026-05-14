@@ -24,19 +24,31 @@ function Utils.is_lowest_stack_below(inventory, item_id, max_stack, looted_stack
 end
 
 function Utils.is_inventory_full()
-    return get_local_player():get_item_count() == 33
+    return get_local_player():get_item_count() >= 33
 end
 
 function Utils.is_consumable_inventory_full()
-    return get_local_player():get_consumable_count() == 33
+    return get_local_player():get_consumable_count() >= 33
 end
 
 function Utils.is_sigil_inventory_full()
-    return #get_local_player():get_dungeon_key_items() == 33
+    return #get_local_player():get_dungeon_key_items() >= 33
 end
 
 function Utils.is_socketable_inventory_full()
-    return #get_local_player():get_socketable_items() == 33
+    return #get_local_player():get_socketable_items() >= 33
+end
+
+function Utils.is_talisman_inventory_full()
+    return #get_local_player():get_talisman_items() >= 33
+end
+
+function Utils.any_inventory_full()
+    return Utils.is_inventory_full()
+        or Utils.is_consumable_inventory_full()
+        or Utils.is_sigil_inventory_full()
+        or Utils.is_socketable_inventory_full()
+        or Utils.is_talisman_inventory_full()
 end
 
 function Utils.player_in_zone(name)
