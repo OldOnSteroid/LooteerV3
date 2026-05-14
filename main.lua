@@ -65,6 +65,21 @@ LooteerPlugin = {
         end
         return false
     end,
+    is_idle = function()
+        return not Settings.get().looting
+    end,
+    has_wanted_nearby = function()
+        return LootEngine.get_nearby_item() ~= nil
+    end,
+    enable = function()
+        GUI.elements.main_toggle:set(true)
+    end,
+    disable = function()
+        GUI.elements.main_toggle:set(false)
+    end,
+    get_enabled = function()
+        return GUI.elements.main_toggle:get()
+    end,
 }
 
 on_update(main_pulse)
