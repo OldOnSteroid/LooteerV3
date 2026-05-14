@@ -1,5 +1,5 @@
 local plugin_label   = "LooteerV3"
-local plugin_version = "1.3.1"
+local plugin_version = "1.4.0"
 local plugin_author  = "Magoogle"
 local gui = {}
 local ItemFilter = require("core.item_filter")
@@ -9,6 +9,7 @@ local ItemFilter = require("core.item_filter")
 -- rather than every frame the box is checked.
 local _last_reload_state = false
 local _last_dump_affixes_state = false
+local _last_dump_currency_state = false
 
 -- Dropdown labels. The combo's index is translated to the actual runtime
 -- rarity threshold by Settings.update (see core/settings.lua).
@@ -183,12 +184,23 @@ gui.elements = {
         rarity_combo= combo_box:new(0,    get_hash(plugin_label .. "_fish_rarity_combo")),
     },
 
+    crafting_mats = {
+        tree                       = tree_node:new(1),
+        skip_obols_toggle          = checkbox:new(false, get_hash(plugin_label .. "_skip_obols")),
+        skip_baleful_toggle        = checkbox:new(false, get_hash(plugin_label .. "_skip_baleful")),
+        skip_obducite_toggle       = checkbox:new(false, get_hash(plugin_label .. "_skip_obducite")),
+        skip_veiled_crystal_toggle = checkbox:new(false, get_hash(plugin_label .. "_skip_veiled_crystal")),
+        skip_rawhide_toggle        = checkbox:new(false, get_hash(plugin_label .. "_skip_rawhide")),
+        skip_forgotten_soul_toggle = checkbox:new(false, get_hash(plugin_label .. "_skip_forgotten_soul")),
+    },
+
     debug = {
-        tree                = tree_node:new(1),
-        draw_wanted_toggle  = checkbox:new(false, get_hash(plugin_label .. "_draw_wanted_toggle")),
-        scan_items_toggle   = checkbox:new(false, get_hash(plugin_label .. "_scan_items_toggle")),
-        draw_path_toggle    = checkbox:new(false, get_hash(plugin_label .. "_draw_path_toggle")),
-        dump_affixes_toggle = checkbox:new(false, get_hash(plugin_label .. "_dump_affixes_toggle")),
+        tree                  = tree_node:new(1),
+        draw_wanted_toggle    = checkbox:new(false, get_hash(plugin_label .. "_draw_wanted_toggle")),
+        scan_items_toggle     = checkbox:new(false, get_hash(plugin_label .. "_scan_items_toggle")),
+        draw_path_toggle      = checkbox:new(false, get_hash(plugin_label .. "_draw_path_toggle")),
+        dump_affixes_toggle   = checkbox:new(false, get_hash(plugin_label .. "_dump_affixes_toggle")),
+        dump_currency_toggle  = checkbox:new(false, get_hash(plugin_label .. "_dump_currency_toggle")),
     },
 }
 
@@ -442,16 +454,6 @@ function gui.render()
             "Pickup quest objectives and dungeon items. No rarity filter — "
             .. "quest items are looted in full when this is on.")
 
-        e.types.crafting_toggle:render("Crafting Materials",
-            "Pickup raw crafting materials (essences, ores, horadric mats).")
-        e.types.crafting_rarity_combo:render("  Crafting Rarity", RARITIES,
-            "Minimum rarity for crafting materials.")
-
-        e.types.recipe_toggle:render("Recipes / Manuals",
-            "Pickup tempering manuals, books, mount items. Independent of Crafting Materials.")
-        e.types.recipe_rarity_combo:render("  Recipe Rarity", RARITIES,
-            "Minimum rarity for recipes/manuals.")
-
         e.types.boss_toggle:render("Boss Materials",
             "Pickup boss summon materials (Living Steel, lair keys, husks, etc).")
         e.types.event_toggle:render("Event Items",
@@ -467,11 +469,6 @@ function gui.render()
 
         -- Categories with optional rarity filters: pair the toggle with a
         -- min-rarity combo immediately below.
-        e.types.scroll_toggle:render("Scrolls",
-            "Pickup scrolls (Scroll_Of_*).")
-        e.types.scroll_rarity_combo:render("  Scroll Rarity", RARITIES,
-            "Minimum rarity for scrolls. Set to Common to loot all.")
-
         e.types.cache_toggle:render("Caches",
             "Pickup treasure / reward caches.")
         e.types.cache_rarity_combo:render("  Cache Rarity", RARITIES,
@@ -518,6 +515,38 @@ function gui.render()
             .. "basic potion. Drop to Common to scoop everything.")
 
         e.types.tree:pop()
+    end
+
+    if e.crafting_mats.tree:push("Crafting Materials") then
+        e.types.crafting_toggle:render("Crafting Materials",
+            "Pickup raw crafting materials (essences, ores, horadric mats).")
+        e.types.crafting_rarity_combo:render("  Crafting Rarity", RARITIES,
+            "Minimum rarity for crafting materials.")
+
+        e.types.recipe_toggle:render("Recipes / Manuals",
+            "Pickup tempering manuals, books, mount items. Independent of Crafting Materials.")
+        e.types.recipe_rarity_combo:render("  Recipe Rarity", RARITIES,
+            "Minimum rarity for recipes/manuals.")
+
+        e.types.scroll_toggle:render("Scrolls",
+            "Pickup scrolls (Scroll_Of_*).")
+        e.types.scroll_rarity_combo:render("  Scroll Rarity", RARITIES,
+            "Minimum rarity for scrolls. Set to Common to loot all.")
+
+        render_menu_header("Skip specific materials (overrides above toggles)")
+        e.crafting_mats.skip_obols_toggle:render("Disable Obols",
+            "Never loot murmuring obols regardless of other settings.")
+        e.crafting_mats.skip_baleful_toggle:render("Disable Baleful Fragments",
+            "Never loot Baleful Fragments.")
+        e.crafting_mats.skip_obducite_toggle:render("Disable Obducite",
+            "Never loot Obducite.")
+        e.crafting_mats.skip_veiled_crystal_toggle:render("Disable Veiled Crystals",
+            "Never loot Veiled Crystals.")
+        e.crafting_mats.skip_rawhide_toggle:render("Disable Rawhide",
+            "Never loot Rawhide.")
+        e.crafting_mats.skip_forgotten_soul_toggle:render("Disable Forgotten Souls",
+            "Never loot Forgotten Souls.")
+        e.crafting_mats.tree:pop()
     end
 
     if e.charm.tree:push("Charm Settings") then
@@ -618,6 +647,58 @@ function gui.render()
             pcall(function() e.debug.dump_affixes_toggle:set(false) end)
         end
         _last_dump_affixes_state = e.debug.dump_affixes_toggle:get()
+
+        e.debug.dump_currency_toggle:render("Dump Currencies",
+            "One-shot click: calls all known currency globals and probes speculative "
+            .. "crafting-material getters so we can find dedicated count functions.")
+        local now_dump_cur = e.debug.dump_currency_toggle:get()
+        if now_dump_cur and not _last_dump_currency_state then
+            console.print("[LooteerV3 Currency Dump] === Known currency globals ===")
+            local known = {
+                { "aether",           get_aether_count },
+                { "helltide_cinders", get_helltide_coin_cinders },
+                { "helltide_hearts",  get_helltide_coin_hearts },
+            }
+            for _, entry in ipairs(known) do
+                local nm, fn = entry[1], entry[2]
+                local ok, val = pcall(fn)
+                console.print(string.format("  %-28s = %s", nm,
+                    ok and tostring(val) or ("ERR: " .. tostring(val))))
+            end
+
+            console.print("[LooteerV3 Currency Dump] === Speculative crafting getters ===")
+            local probes = {
+                "get_obducite_count", "get_baleful_fragment_count",
+                "get_forgotten_soul_count", "get_iron_chunks_count",
+                "get_rawhide_count", "get_veiled_crystal_count",
+                "get_abstruse_sigil_count", "get_angelbreath_count",
+                "get_fiend_rose_count", "get_gallowvine_count",
+                "get_crushed_beast_bone_count", "get_gold_count",
+                "get_gold", "get_murmuring_obols_count",
+            }
+            for _, fname in ipairs(probes) do
+                local fn = _G[fname]
+                if fn then
+                    local ok, val = pcall(fn)
+                    console.print(string.format("  %-42s = %s", fname,
+                        ok and tostring(val) or ("ERR: " .. tostring(val))))
+                else
+                    console.print(string.format("  %-42s (not in _G)", fname))
+                end
+            end
+
+            -- Also try player:get_currency() — exists on game.item_data, may exist on player too
+            local player = get_local_player()
+            if player then
+                local ok, val = pcall(function() return player:get_currency() end)
+                console.print("[player:get_currency()] = " .. (ok and tostring(val) or ("ERR: " .. tostring(val))))
+            end
+
+            console.print("[LooteerV3 Currency Dump] === END ===")
+            pcall(function() e.debug.dump_currency_toggle:set(false) end)
+        end
+        _last_dump_currency_state = e.debug.dump_currency_toggle:get()
+
         e.debug.tree:pop()
     end
 

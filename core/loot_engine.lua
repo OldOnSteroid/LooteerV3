@@ -47,7 +47,10 @@ function LootEngine.check_want_item(item, ignore_distance)
     end
 
     if cat == "goblin_cache" then return s.goblin_cache end
-    if cat == "obol_bag"     then return s.obols end
+    if cat == "obol_bag" then
+        if s.skip_obols then return false end
+        return s.obols
+    end
     if cat == "cinders"      then return s.cinders end
 
     if cat == "quest" then return s.quest_items end
@@ -55,6 +58,8 @@ function LootEngine.check_want_item(item, ignore_distance)
     if cat == "crafting" then
         if not s.crafting_items then return false end
         if rarity < (s.crafting_rarity or 0) then return false end
+        local skip_key = Utils.MAT_SKIP_KEY[id]
+        if skip_key and s[skip_key] then return false end
         if Utils.is_crafting_mat_capped(id) then return false end
         return true
     end
@@ -181,7 +186,18 @@ function LootEngine.check_want_item(item, ignore_distance)
     -- ── Equipment ─────────────────────────────────────────────────
     if Utils.is_inventory_full() then return false end
     if s.use_ingame_loot_filter and info:is_filtered_by_loot_filter() then return false end
-    if rarity < s.rarity then return false end
+
+    local is_anc = (s.ancestral_only or s.pick_ancestral_normals) and info:is_ancestral()
+
+    -- Ancestral-only: reject non-ancestral gear unless it's a unique and the
+    -- non_ancestral_uniques exception is enabled.
+    if s.ancestral_only and not is_anc then
+        if not (s.non_ancestral_uniques and rarity >= 6) then return false end
+    end
+
+    if rarity < s.rarity then
+        if not (s.pick_ancestral_normals and is_anc) then return false end
+    end
 
     if rarity >= 5 then
         local ga   = Utils.get_greater_affix_count(info:get_display_name())

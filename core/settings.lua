@@ -100,6 +100,9 @@ local settings = {
     unique_staff_ga_count=0,      unique_bow_ga_count=0,
     unique_crossbow_ga_count=0,   unique_glaive_ga_count=0,
     unique_quarterstaff_ga_count=0,
+    -- per-material skip overrides (default false = loot; true = always skip)
+    skip_obols=false, skip_baleful=false, skip_obducite=false,
+    skip_veiled_crystal=false, skip_rawhide=false, skip_forgotten_soul=false,
     -- special item types
     charm=false, charm_rarity=0, charm_ga_count=0, ingame_filter_charm=false,
     cube=false,  cube_rarity=0,
@@ -232,6 +235,13 @@ function Settings.update()
         seal_rarity  = rarity_threshold(e.seal.rarity_combo:get()),
         fish         = e.fish.toggle:get(),
         fish_rarity  = rarity_threshold(e.fish.rarity_combo:get()),
+
+        skip_obols           = e.crafting_mats.skip_obols_toggle:get(),
+        skip_baleful         = e.crafting_mats.skip_baleful_toggle:get(),
+        skip_obducite        = e.crafting_mats.skip_obducite_toggle:get(),
+        skip_veiled_crystal  = e.crafting_mats.skip_veiled_crystal_toggle:get(),
+        skip_rawhide         = e.crafting_mats.skip_rawhide_toggle:get(),
+        skip_forgotten_soul  = e.crafting_mats.skip_forgotten_soul_toggle:get(),
 
         use_ingame_loot_filter = e.ingame_loot_filter_toggle:get(),
 

@@ -9,6 +9,16 @@ local CRAFTING_CAP_SNOS = {
     [357929]  = true, [1205842] = true, [1868060] = true, -- Forgotten Soul
 }
 
+-- Maps SNO ID → settings key for per-material skip toggles.
+-- Add Veiled Crystal and Rawhide SNO IDs once identified via the Debug › Dump Currencies tool.
+Utils.MAT_SKIP_KEY = {
+    [1852185] = "skip_obducite",       [1928427] = "skip_obducite",
+    [442701]  = "skip_baleful",        [1868786] = "skip_baleful",
+    [357929]  = "skip_forgotten_soul", [1205842] = "skip_forgotten_soul", [1868060] = "skip_forgotten_soul",
+    [442481]  = "skip_veiled_crystal",
+    [442216]  = "skip_rawhide",
+}
+
 local _craft_cache     = {}
 local _craft_cache_at  = 0
 
