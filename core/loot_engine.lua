@@ -55,6 +55,7 @@ function LootEngine.check_want_item(item, ignore_distance)
     if cat == "crafting" then
         if not s.crafting_items then return false end
         if rarity < (s.crafting_rarity or 0) then return false end
+        if Utils.is_crafting_mat_capped(id) then return false end
         return true
     end
 

@@ -1,5 +1,48 @@
 local Utils = {}
 
+-- SNO IDs for crafting materials that have a 999,999 cap.
+-- Multiple SNO IDs per material exist across seasons/patches.
+local CRAFTING_CAP = 999999
+local CRAFTING_CAP_SNOS = {
+    [1852185] = true, [1928427] = true,             -- Obducite
+    [442701]  = true, [1868786] = true,             -- Baleful Fragment
+    [357929]  = true, [1205842] = true, [1868060] = true, -- Forgotten Soul
+}
+
+local _craft_cache     = {}
+local _craft_cache_at  = 0
+
+local function _refresh_craft_cache()
+    local now = os.time()
+    if now - _craft_cache_at < 2 then return end
+    _craft_cache_at = now
+    _craft_cache    = {}
+    local player = get_local_player()
+    if not player then return end
+    local function tally(items)
+        if type(items) ~= "table" then return end
+        for _, item in ipairs(items) do
+            local ok_s, sno = pcall(function() return item:get_sno_id() end)
+            if ok_s and CRAFTING_CAP_SNOS[sno] then
+                local ok_c, cnt = pcall(function() return item:get_stack_count() end)
+                local n = (ok_c and cnt and cnt > 0) and cnt or 1
+                _craft_cache[sno] = (_craft_cache[sno] or 0) + n
+            end
+        end
+    end
+    pcall(function() tally(player:get_inventory_items()) end)
+    pcall(function() tally(player:get_consumable_items()) end)
+end
+
+-- Returns true when the player already holds >= 999,999 of a capped
+-- crafting material (Obducite, Baleful Fragment, Forgotten Soul).
+-- Result is cached for 2 s to avoid scanning inventory every frame.
+function Utils.is_crafting_mat_capped(sno_id)
+    if not CRAFTING_CAP_SNOS[sno_id] then return false end
+    _refresh_craft_cache()
+    return (_craft_cache[sno_id] or 0) >= CRAFTING_CAP
+end
+
 function Utils.distance_to(obj)
     return get_player_position():dist_to_ignore_z(obj:get_position())
 end
