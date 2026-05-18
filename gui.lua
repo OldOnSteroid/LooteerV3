@@ -1,5 +1,5 @@
 local plugin_label   = "LooteerV3"
-local plugin_version = "1.4.0"
+local plugin_version = "1.5.0"
 local plugin_author  = "Magoogle"
 local gui = {}
 local ItemFilter = require("core.item_filter")

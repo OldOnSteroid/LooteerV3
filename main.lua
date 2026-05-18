@@ -71,6 +71,27 @@ LooteerPlugin = {
     has_wanted_nearby = function()
         return LootEngine.get_nearby_item() ~= nil
     end,
+    -- Live "would Looter pick something up right now?" check for external
+    -- orchestrators (e.g. Reaper waits on this before advancing past a chest).
+    --
+    -- Does a fresh scan rather than reading the cached `looting` flag, so the
+    -- answer is correct even when main_pulse is gated (toggle off, behavior
+    -- restricted to clear-mode, etc.). Respects the same enable + behavior
+    -- gates main_pulse uses, so a "true" result really means Looter is about
+    -- to grab something on its next tick.
+    is_actively_looting = function()
+        if not GUI.elements.main_toggle:get() then return false end
+        if not Settings.should_execute()      then return false end
+        local priority = GUI.elements.general.loot_priority_combo:get()
+        local item
+        if priority == 0 then
+            item = LootEngine.get_nearby_item()
+        else
+            local best = LootEngine.get_best_item()
+            item = best and best.Item
+        end
+        return item ~= nil
+    end,
     enable = function()
         GUI.elements.main_toggle:set(true)
     end,
