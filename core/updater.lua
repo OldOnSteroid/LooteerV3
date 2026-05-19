@@ -1,11 +1,16 @@
 local ItemFilter = require("core.item_filter")
 
 local Updater = {}
-Updater._fetching_items = false
-Updater._last_sync      = 0
+Updater._fetching_items  = false
+Updater._fetching_config = false
+Updater._last_sync       = 0
+Updater._last_config_sync= 0
+Updater.web_config_active= false
+Updater.on_config_fetched= nil   -- set by gui.lua when web config is enabled
 
-local BASE_URL      = "https://looter.d4data.live"
-local SYNC_INTERVAL = 3600
+local BASE_URL            = "https://looter.d4data.live"
+local SYNC_INTERVAL       = 3600
+local CONFIG_SYNC_INTERVAL= 30
 
 local _PLUG = ItemFilter.get_plugin_dir()
 
@@ -84,13 +89,24 @@ function Updater.fetch_items(on_done)
 end
 
 function Updater.fetch_config()
+    if Updater._fetching_config then return end
     local key = _read_key()
     if not key then return end
+    Updater._fetching_config = true
     local url = BASE_URL .. "/api/config/" .. key .. "/config.lua"
     curl.http_get(url, function(body, status, err)
+        Updater._fetching_config = false
         if err ~= "" or status ~= 200 then return end
         local f = io.open(_PLUG .. "data/config.lua", "w")
         if f then f:write(body); f:close() end
+        -- If web config is active, parse and apply immediately
+        if Updater.on_config_fetched then
+            package.loaded["data.config"] = nil
+            local ok, cfg = pcall(require, "data.config")
+            if ok and type(cfg) == "table" then
+                Updater.on_config_fetched(cfg)
+            end
+        end
     end, { ["X-Profile-Key"] = key }, 15.0)
 end
 
@@ -105,11 +121,17 @@ function Updater.init()
     Updater.fetch_items()           -- always fetch on startup to pick up any updates
 end
 
--- Called every frame; fires an async sync when the interval elapses.
+-- Called every frame; fires async syncs when intervals elapse.
 function Updater.tick()
-    if not Updater._fetching_items and os.time() - Updater._last_sync >= SYNC_INTERVAL then
-        Updater._last_sync = os.time()
+    local now = os.time()
+    if not Updater._fetching_items and now - Updater._last_sync >= SYNC_INTERVAL then
+        Updater._last_sync = now
         Updater.fetch_items()
+    end
+    if Updater.web_config_active and not Updater._fetching_config
+        and now - Updater._last_config_sync >= CONFIG_SYNC_INTERVAL then
+        Updater._last_config_sync = now
+        Updater.fetch_config()
     end
 end
 

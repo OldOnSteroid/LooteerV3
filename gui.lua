@@ -291,20 +291,29 @@ function gui.render()
     local was_web = Settings._web_config ~= nil
     e.web_config_toggle:render("Use Web Config",
         "Apply loot settings from your cloud profile config. "
-        .. "Config is fetched automatically on startup. "
-        .. "Uncheck and recheck to reload the latest config.")
+        .. "While enabled, settings sync live from the server every 30 seconds.")
     local want_web = e.web_config_toggle:get()
     if want_web and not was_web then
+        -- Register live-update callback so every config fetch applies immediately
+        Updater.web_config_active = true
+        Updater.on_config_fetched = function(cfg)
+            Settings._web_config = cfg
+            Settings.apply_config(cfg)
+        end
+        -- Apply whatever is on disk right now, then the 30s tick will keep it fresh
         package.loaded["data.config"] = nil
         local ok, cfg = pcall(require, "data.config")
         if ok and type(cfg) == "table" then
             Settings._web_config = cfg
-            console.print("[LooteerV3] Web config loaded from data/config.lua")
+            Settings.apply_config(cfg)
+            console.print("[LooteerV3] Web config active — live sync every 30s")
         else
             Settings._web_config = nil
-            console.print("[LooteerV3] Web config not found — config syncs on startup.")
+            console.print("[LooteerV3] Web config not on disk yet — will apply on next sync.")
         end
     elseif not want_web and was_web then
+        Updater.web_config_active = false
+        Updater.on_config_fetched = nil
         Settings._web_config = nil
         console.print("[LooteerV3] Web config disabled — using local GUI settings.")
     end
