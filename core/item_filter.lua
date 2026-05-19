@@ -47,12 +47,7 @@ end
 
 -- Resolve the plugin's own folder. QQT sandboxes the `debug` library so
 -- we can't use debug.getinfo. Instead, ask Lua's loader where it'd find
--- our own module file via package.searchpath, then chop off the
--- "core/item_filter.lua" suffix.
---
--- This is needed because QQT's `os.execute` child processes don't always
--- inherit the plugin folder as their cwd, and `io.open` on relative
--- paths has the same problem. Using absolute paths sidesteps both.
+-- our own module file via package.searchpath, then chop off the suffix.
 local function _plugin_dir()
     if package.searchpath then
         local p = package.searchpath("core.item_filter", package.path)
@@ -81,75 +76,14 @@ end
 
 local _PLUG = _plugin_dir()
 
-local function _file_size(path)
-    local f = io.open(path, "rb")
-    if not f then return nil end
-    local n = f:seek("end") or 0
-    f:close()
-    return n
-end
+-- Expose plugin dir so core/updater.lua can write files alongside us.
+function ItemFilter.get_plugin_dir() return _PLUG end
 
-local function _read_text(path, max_chars)
-    local f = io.open(path, "r")
-    if not f then return nil end
-    local txt = f:read(max_chars or 4096) or ""
-    f:close()
-    txt = txt:gsub("[\r\n]+$", "")
-    return (txt ~= "" and txt) or nil
-end
-
--- Fire Updater.bat in oneshot mode (single fetch + exit), then re-read
--- data/items.lua. We use absolute paths derived from this file's own
--- location so the spawned cmd, the bat's %~dp0 expansion, and the
--- subsequent io.open all agree on what "the plugin folder" means.
---
--- Success is judged by whether data/items.lua actually changed on disk
--- AND data/last_sync_log.txt got written — os.execute returning OK only
--- means the shell was callable, not that the bat actually ran.
-function ItemFilter.fetch_and_reload()
-    local items_path = _PLUG .. "data/items.lua"
-    local log_path   = _PLUG .. "data/last_sync_log.txt"
-    local bat_path   = _PLUG .. "Updater.bat"
-
-    local before = _file_size(items_path) or 0
-
-    -- Wipe the previous log so its presence after spawn proves the bat ran.
-    pcall(os.execute, string.format('del /q "%s" >NUL 2>&1', log_path))
-    -- Run the bat with its absolute path. The cmd /c outer quotes are the
-    -- canonical Windows trick to handle paths with spaces.
-    pcall(os.execute, string.format('cmd /c ""%s" oneshot" >NUL 2>&1', bat_path))
-
-    local log_size = _file_size(log_path) or 0
-    local after    = _file_size(items_path) or 0
-
-    if log_size == 0 then
-        console.print("[LooteerV3] Updater.bat didn't appear to run.\n"
-            .. "  Plugin dir resolved as: " .. _PLUG .. "\n"
-            .. "  Bat path tried:         " .. bat_path .. "\n"
-            .. "  Possible cause: QQT is sandboxing os.execute, or the bat "
-            .. "isn't at that path. Run Updater.bat manually to confirm it works.")
-    elseif after == 0 then
-        local log = _read_text(log_path, 2048)
-        console.print("[LooteerV3] Updater ran but items.lua is missing/empty. Log:\n"
-            .. (log or "(log unreadable)"))
-    elseif after ~= before then
-        console.print(string.format(
-            "[LooteerV3] Updater fetched a fresh catalog (%d -> %d bytes). Reloading.",
-            before, after))
-    else
-        console.print("[LooteerV3] Updater complete (catalog unchanged). Reloading.")
-    end
-    return ItemFilter.load_catalog()
-end
-
--- Startup: try to load the catalog. If it's missing, automatically
--- bootstrap by running Updater.bat oneshot. The repo ships a pre-built
--- items.lua, so this fallback is mainly for users who somehow deleted
--- the data/ folder or never had a successful sync.
+-- Startup: load catalog from disk. If missing, Updater.init() (called on
+-- the first game tick from main.lua) will fetch it via curl automatically.
 ItemFilter.load_catalog()
 if not ItemFilter._catalog_loaded then
-    console.print("[LooteerV3] No catalog on disk — bootstrapping via Updater.bat...")
-    ItemFilter.fetch_and_reload()
+    console.print("[LooteerV3] No catalog on disk — will fetch on first tick.")
 end
 
 -- Name-pattern fallback comes from the server-emitted Items.name_patterns

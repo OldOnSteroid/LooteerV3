@@ -3,6 +3,7 @@ local plugin_version = "1.5.0"
 local plugin_author  = "Magoogle"
 local gui = {}
 local ItemFilter = require("core.item_filter")
+local Updater    = require("core.updater")
 
 -- Track the previous frame's state of the reload checkbox so we trigger
 -- load_catalog only on the false->true transition (one reload per click)
@@ -263,25 +264,17 @@ function gui.render()
 
     e.main_toggle:render("Enable", "Toggles the main module on/off")
 
-    -- Load / reload catalog. Click triggers Updater.bat in one-shot mode
-    -- (single fetch + exit) so the on-disk catalog is fresh, then reads
-    -- it back into Lua memory. False->true transition pattern so the
-    -- action only fires once per click; if the framework supports :set()
-    -- we reset the checkbox so it visually acts like a button. Label
-    -- flips between "Load" and "Reload" based on current state.
-    local catalog_btn_label = catalog_loaded and "Reload Catalog" or "Load Catalog"
-    local catalog_btn_tip   = catalog_loaded
-        and "Run Updater.bat once to pull the latest items.lua from the cloud, "
-            .. "then re-read it from disk. No need to keep Updater.bat running."
-        or  "Run Updater.bat once to fetch items.lua, then load it. The repo "
-            .. "ships with a pre-built catalog so this normally succeeds even "
-            .. "without a server connection."
+    -- Reload catalog via curl. False->true transition so it fires once per
+    -- click; label shows current state including in-flight fetch.
+    local catalog_btn_label = Updater._fetching_items and "Fetching..."
+        or catalog_loaded and "Reload Catalog" or "Load Catalog"
+    local catalog_btn_tip = "Fetch the latest items.lua from the cloud and reload "
+        .. "it into memory. The catalog also auto-syncs every 60 s in the background."
     e.reload_catalog_toggle:render(catalog_btn_label, catalog_btn_tip)
     local now_reload = e.reload_catalog_toggle:get()
     if now_reload and not _last_reload_state then
-        ItemFilter.fetch_and_reload()
+        Updater.fetch_items()
         pcall(function() e.reload_catalog_toggle:set(false) end)
-        catalog_loaded = ItemFilter._catalog_loaded
     end
     _last_reload_state = e.reload_catalog_toggle:get()
 

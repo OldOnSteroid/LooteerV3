@@ -8,12 +8,12 @@ item never requires a client update.
 ## Architecture
 
 ```
-   ┌──────────────────┐    HTTP    ┌──────────────────┐
-   │ looter-d4share   │ ─────────▶ │  Updater.bat     │
-   │ (Linux + Docker) │   pull     │  (60s loop)      │
-   │ pipeline.py      │            └────────┬─────────┘
-   │ d4data + Wowhead │                     │ writes
-   └──────────────────┘                     ▼
+   ┌──────────────────┐    HTTP    ┌──────────────────────┐
+   │ looter-d4share   │ ─────────▶ │  core/updater.lua    │
+   │ (Linux + Docker) │   curl     │  (60s auto-sync)     │
+   │ pipeline.py      │            └──────────┬───────────┘
+   │ d4data + Wowhead │                       │ writes
+   └──────────────────┘                       ▼
                                    ┌──────────────────┐
                                    │ data/items.lua   │
                                    │ data/config.lua  │
@@ -38,7 +38,7 @@ d4data + Wowhead, then served at
 ## Features
 
 - **Cloud-driven classification** — categories and patterns are server data,
-  not hardcoded Lua. Updater.bat refreshes every 60 s.
+  not hardcoded Lua. The plugin auto-syncs every 60 s via QQT's built-in curl.
 - **Catalog-mandatory** — the loot engine refuses to act if `data/items.lua`
   isn't present. The repo ships a pre-built copy so a fresh checkout is
   immediately functional; the GUI exposes a one-shot `Load / Reload Catalog`
@@ -71,15 +71,14 @@ d4data + Wowhead, then served at
    ```
    <QQT install>/scripts/LooteerV3/
    ```
-2. Edit `Updater.bat` and set `BASE_URL` to your catalog server.
-3. Run `Updater.bat` once — it generates a profile key, registers with the
-   server, and pulls the latest `items.lua` and `config.lua`. Leave it running
-   in the background to keep them fresh (60 s sync loop).
-4. Launch QQT and enable **LooteerV3** in the plugin list.
+2. Launch QQT and enable **LooteerV3** in the plugin list.
 
-The repo ships a pre-built `data/items.lua`, so step 3 is optional for first
-launch — but you'll want it running so the catalog stays in sync with the
-server.
+On the first tick the plugin auto-generates a profile key, registers with the
+server, and fetches the latest `items.lua` and `config.lua`. It re-syncs every
+60 seconds in the background — no external process needed.
+
+The repo ships a pre-built `data/items.lua` so the catalog is available
+immediately even before the first sync completes.
 
 ## In-game GUI
 
@@ -88,8 +87,8 @@ All settings live in the QQT in-game menu under `LooteerV3`. Top-level layout:
 - **Header** — current catalog version + age. Shows `!! CATALOG NOT LOADED !!`
   in red if `data/items.lua` is missing.
 - **Enable** — master toggle.
-- **Load / Reload Catalog** — click-to-reload (label flips when the catalog
-  is loaded).
+- **Load / Reload Catalog** — triggers an immediate curl fetch; shows
+  "Fetching..." while in flight. Auto-syncs every 60 s otherwise.
 - **Use Web Config** — apply settings downloaded from the admin web UI's
   per-profile config link.
 - **General Settings** — behavior (Always / Orbwalk), distance, equipment
@@ -109,11 +108,10 @@ All settings live in the QQT in-game menu under `LooteerV3`. Top-level layout:
 LooteerV3/
 ├── main.lua              # entry point, loot loop, plugin API
 ├── gui.lua               # in-game menu
-├── Updater.bat           # 60 s sync loop pulling items.lua + config.lua
-├── build_bundle.py       # packaging helper
 ├── core/
 │   ├── item_filter.lua   # catalog lookup → group → loot-engine category
 │   ├── loot_engine.lua   # rarity / inventory / GA gates
+│   ├── updater.lua       # async curl sync (items.lua, config.lua, profile key)
 │   ├── pathfinder.lua    # movement to drops
 │   ├── renderer.lua      # on-screen overlay
 │   └── settings.lua      # reads the GUI elements every frame

@@ -4,6 +4,8 @@ local Renderer   = require("core.renderer")
 local GUI        = require("gui")
 local Utils      = require("utils.utils")
 local Pathfinder = require("core.pathfinder")
+local ItemFilter = require("core.item_filter")
+local Updater    = require("core.updater")
 
 local RARITY_NAMES = {
     [0]="Normal",[1]="Normal",[2]="Magic",[3]="Magic",
@@ -29,9 +31,17 @@ local function handle_loot(item)
     end
 end
 
+local _initialized = false
+
 local function main_pulse()
     if not get_local_player() then return end
 
+    if not _initialized then
+        _initialized = true
+        Updater.init()
+    end
+
+    Updater.tick()
     Settings.update()
 
     if not Settings.get().enabled then return end
