@@ -5,7 +5,7 @@ Updater._fetching_items = false
 Updater._last_sync      = 0
 
 local BASE_URL      = "https://looter.d4data.live"
-local SYNC_INTERVAL = 60
+local SYNC_INTERVAL = 3600
 
 local _PLUG = ItemFilter.get_plugin_dir()
 
@@ -98,12 +98,11 @@ end
 -- registers it with the server, syncs config, and bootstraps the
 -- catalog if it wasn't on disk at load time.
 function Updater.init()
+    Updater._last_sync = os.time()  -- prevent tick() from firing a second fetch immediately
     local key = _ensure_key()
     _register(key)
     Updater.fetch_config()
-    if not ItemFilter._catalog_loaded then
-        Updater.fetch_items()
-    end
+    Updater.fetch_items()           -- always fetch on startup to pick up any updates
 end
 
 -- Called every frame; fires an async sync when the interval elapses.
