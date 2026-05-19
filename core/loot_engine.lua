@@ -28,14 +28,14 @@ function LootEngine.check_want_item(item, ignore_distance)
     -- ── Always-loot categories (now opt-out via toggle) ────────────
     if cat == "uber"          then return s.uber          ~= false end
     if cat == "keys"          then return s.keys_loot     ~= false end
-    if cat == "misc_trinkets" then return s.misc_trinkets ~= false end
+    if cat == "misc_trinkets" then return s.misc_trinkets ~= false and not Utils.is_inventory_full() end
     if cat == "xp_powerup"    then return s.xp_powerup    ~= false end
     if cat == "class_powerup" then return s.class_powerup == true   end
     if cat == "glyph_drop"    then return s.glyph_drop    ~= false end
     if cat == "boss_drops" then
         if s.boss_drops == false then return false end
         if rarity < (s.boss_drops_rarity or 0) then return false end
-        return true
+        return not Utils.is_inventory_full()
     end
 
     -- ── Toggled / conditional ──────────────────────────────────────
@@ -46,9 +46,11 @@ function LootEngine.check_want_item(item, ignore_distance)
         return not Utils.is_inventory_full()
     end
 
-    if cat == "goblin_cache" then return s.goblin_cache end
+    if cat == "goblin_cache" then return s.goblin_cache and not Utils.is_inventory_full() end
     if cat == "obol_bag" then
         if s.skip_obols then return false end
+        local player = get_local_player()
+        if player and player:get_obols() >= 2500 then return false end
         return s.obols
     end
     if cat == "cinders"      then return s.cinders end
@@ -144,17 +146,17 @@ function LootEngine.check_want_item(item, ignore_distance)
         if not s.charm or rarity < s.charm_rarity then return false end
         if s.ingame_filter_charm and info:is_filtered_by_loot_filter() then return false end
         if s.charm_ga_count > 0 then
-            local ga = Utils.get_greater_affix_count(info:get_display_name())
+            local ga = Utils.get_ga_count(info)
             if ga < s.charm_ga_count then return false end
         end
-        return not Utils.is_inventory_full()
+        return not Utils.is_talisman_inventory_full()
     end
 
     -- Trophies are cosmetics (back trophies, mount trophies, banners).
     -- Default off; user can opt in via the Trophy toggle.
     if cat == "trophy" then
         if not s.trophy then return false end
-        return not Utils.is_talisman_inventory_full()
+        return not Utils.is_inventory_full()
     end
 
     if cat == "cube" then
@@ -196,11 +198,11 @@ function LootEngine.check_want_item(item, ignore_distance)
     end
 
     if rarity < s.rarity then
-        if not (s.pick_ancestral_normals and is_anc) then return false end
+        if not (s.pick_ancestral_normals and is_anc and rarity == 0) then return false end
     end
 
     if rarity >= 5 then
-        local ga   = Utils.get_greater_affix_count(info:get_display_name())
+        local ga   = Utils.get_ga_count(info)
         local need = nil
 
         if s.custom_toggle then
@@ -220,12 +222,12 @@ function LootEngine.check_want_item(item, ignore_distance)
         if ga < need then return false end
     elseif rarity >= 3 then
         if s.rare_ga_count > 0 then
-            local ga = Utils.get_greater_affix_count(info:get_display_name())
+            local ga = Utils.get_ga_count(info)
             if ga < s.rare_ga_count then return false end
         end
     elseif rarity >= 1 then
         if s.magic_ga_count > 0 then
-            local ga = Utils.get_greater_affix_count(info:get_display_name())
+            local ga = Utils.get_ga_count(info)
             if ga < s.magic_ga_count then return false end
         end
     end
@@ -252,7 +254,7 @@ function LootEngine.score_item(item)
         or rarity >= 3 and 300
         or rarity >= 1 and 100
         or 10
-    local ga = Utils.get_greater_affix_count(info:get_display_name())
+    local ga = Utils.get_ga_count(info)
     return score + (ga == 3 and 100 or ga == 2 and 75 or ga == 1 and 50 or 0)
 end
 

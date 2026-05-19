@@ -342,8 +342,8 @@ function gui.render()
             "Only loot equipment that is ancestral. Use with the options below to fine-tune.")
         e.general.non_anc_uniques_toggle:render("Non-Ancestral Uniques",
             "When Ancestral Only is on, still loot unique-tier items even if they are not ancestral.")
-        e.general.pick_anc_normals_toggle:render("Pick Ancestral Normals",
-            "Loot any ancestral item regardless of your rarity threshold (e.g. ancestral rares when threshold is Legendary).")
+        e.general.pick_anc_normals_toggle:render("Pick Ancestral Bases",
+            "Loot ancestral normal-tier (base rarity) items regardless of your rarity threshold.")
         e.general.tree:pop()
     end
 

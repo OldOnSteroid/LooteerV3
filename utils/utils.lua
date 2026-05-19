@@ -64,6 +64,13 @@ function Utils.get_greater_affix_count(display_name)
     return count
 end
 
+function Utils.get_ga_count(info)
+    local ok, count = pcall(function() return info:get_attribute(attributes.ITEM_GREATER_AFFIX_COUNT) end)
+    if ok and count then return math.floor(count) end
+    local ok2, dn = pcall(function() return info:get_display_name() end)
+    return ok2 and Utils.get_greater_affix_count(dn) or 0
+end
+
 function Utils.is_lowest_stack_below(inventory, item_id, max_stack, looted_stack)
     if not inventory then return true end
     local lowest = max_stack
