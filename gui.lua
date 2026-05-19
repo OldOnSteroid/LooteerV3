@@ -290,9 +290,9 @@ function gui.render()
     local Settings = require("core.settings")
     local was_web = Settings._web_config ~= nil
     e.web_config_toggle:render("Use Web Config",
-        "Apply loot settings downloaded from your cloud config URL. "
-        .. "Run Updater.bat first, then check this to activate. "
-        .. "Uncheck and recheck to reload after Updater syncs new settings.")
+        "Apply loot settings from your cloud profile config. "
+        .. "Config is fetched automatically on startup. "
+        .. "Uncheck and recheck to reload the latest config.")
     local want_web = e.web_config_toggle:get()
     if want_web and not was_web then
         package.loaded["data.config"] = nil
@@ -302,7 +302,7 @@ function gui.render()
             console.print("[LooteerV3] Web config loaded from data/config.lua")
         else
             Settings._web_config = nil
-            console.print("[LooteerV3] Web config not found — run Updater.bat first.")
+            console.print("[LooteerV3] Web config not found — config syncs on startup.")
         end
     elseif not want_web and was_web then
         Settings._web_config = nil
