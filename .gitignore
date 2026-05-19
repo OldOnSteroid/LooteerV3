@@ -4,3 +4,4 @@ data/config.lua
 data/last_sync.lua
 data/last_sync_log.txt
 data/last_sync_error.txt
+.claude/settings.local.json
