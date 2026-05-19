@@ -314,8 +314,9 @@ function gui.render()
     elseif not want_web and was_web then
         Updater.web_config_active = false
         Updater.on_config_fetched = nil
+        Settings.apply_to_gui(Settings._web_config)
         Settings._web_config = nil
-        console.print("[LooteerV3] Web config disabled — using local GUI settings.")
+        console.print("[LooteerV3] Web config disabled — settings applied to GUI.")
     end
 
     e.ingame_loot_filter_toggle:render("Use Ingame Loot Filter (Gear)",

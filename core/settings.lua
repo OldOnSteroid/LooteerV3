@@ -22,6 +22,13 @@ local function charm_rarity_threshold(combo_idx)
     return CHARM_RARITY_RUNTIME[combo_idx or 0] or 0
 end
 
+-- Reverse maps: runtime rarity value → combo index (for apply_to_gui)
+local RARITY_COMBO_IDX = {}
+for idx, rt in pairs(RARITY_RUNTIME) do RARITY_COMBO_IDX[rt] = idx end
+
+local CHARM_RARITY_COMBO_IDX = {}
+for idx, rt in pairs(CHARM_RARITY_RUNTIME) do CHARM_RARITY_COMBO_IDX[rt] = idx end
+
 Settings._web_config = nil  -- set by gui.lua when web config checkbox is enabled
 
 -- Pathfinder settings (read by core.pathfinder)
@@ -273,6 +280,149 @@ function Settings.apply_config(cfg)
         end
     end
     Settings.enabled = settings.enabled
+end
+
+-- Push a config table's values back into the GUI elements so QQT persists
+-- them via get_hash(). Call this before clearing _web_config so the values
+-- survive the toggle-off and become the new baseline for Settings.update().
+function Settings.apply_to_gui(cfg)
+    if type(cfg) ~= "table" then return end
+    local e = gui.elements
+    local function s(el, key)
+        if cfg[key] ~= nil then pcall(el.set, el, cfg[key]) end
+    end
+    local function sr(el, key, map)
+        if cfg[key] ~= nil then pcall(el.set, el, map[cfg[key]] or 0) end
+    end
+
+    s(e.main_toggle, "enabled")
+    s(e.general.behavior_combo, "behavior")
+    sr(e.general.rarity_combo, "rarity", RARITY_COMBO_IDX)
+    s(e.general.distance_slider, "distance")
+    s(e.general.loot_priority_combo, "loot_priority")
+    s(e.general.ancestral_only_toggle, "ancestral_only")
+    s(e.general.non_anc_uniques_toggle, "non_ancestral_uniques")
+    s(e.general.pick_anc_normals_toggle, "pick_ancestral_normals")
+
+    s(e.affix.magic_greater_affix_slider, "magic_ga_count")
+    s(e.affix.rare_greater_affix_slider, "rare_ga_count")
+    s(e.affix.greater_affix_slider, "ga_count")
+    s(e.affix.unique_greater_affix_slider, "unique_ga_count")
+    s(e.affix.uber_unique_greater_affix_slider, "uber_unique_ga_count")
+    s(e.affix.custom_toggle, "custom_toggle")
+
+    s(e.affix.legendary_amulet_slider, "legendary_amulet_ga_count")
+    s(e.affix.unique_amulet_slider, "unique_amulet_ga_count")
+    s(e.affix.legendary_ring_slider, "legendary_ring_ga_count")
+    s(e.affix.unique_ring_slider, "unique_ring_ga_count")
+
+    s(e.affix.legendary_helm_slider, "legendary_helm_ga_count")
+    s(e.affix.legendary_chest_slider, "legendary_chest_ga_count")
+    s(e.affix.legendary_gloves_slider, "legendary_gloves_ga_count")
+    s(e.affix.legendary_pants_slider, "legendary_pants_ga_count")
+    s(e.affix.legendary_boots_slider, "legendary_boots_ga_count")
+    s(e.affix.unique_helm_slider, "unique_helm_ga_count")
+    s(e.affix.unique_chest_slider, "unique_chest_ga_count")
+    s(e.affix.unique_gloves_slider, "unique_gloves_ga_count")
+    s(e.affix.unique_pants_slider, "unique_pants_ga_count")
+    s(e.affix.unique_boots_slider, "unique_boots_ga_count")
+
+    s(e.affix.legendary_focus_slider, "legendary_focus_ga_count")
+    s(e.affix.legendary_totem_slider, "legendary_totem_ga_count")
+    s(e.affix.legendary_shield_slider, "legendary_shield_ga_count")
+    s(e.affix.unique_shield_slider, "unique_shield_ga_count")
+
+    s(e.affix.legendary_1h_mace_slider, "legendary_1h_mace_ga_count")
+    s(e.affix.legendary_1h_sword_slider, "legendary_1h_sword_ga_count")
+    s(e.affix.legendary_1h_axe_slider, "legendary_1h_axe_ga_count")
+    s(e.affix.legendary_dagger_slider, "legendary_dagger_ga_count")
+    s(e.affix.legendary_wand_slider, "legendary_wand_ga_count")
+    s(e.affix.unique_1h_mace_slider, "unique_1h_mace_ga_count")
+    s(e.affix.unique_1h_sword_slider, "unique_1h_sword_ga_count")
+    s(e.affix.unique_1h_axe_slider, "unique_1h_axe_ga_count")
+    s(e.affix.unique_dagger_slider, "unique_dagger_ga_count")
+    s(e.affix.unique_wand_slider, "unique_wand_ga_count")
+
+    s(e.affix.legendary_2h_mace_slider, "legendary_2h_mace_ga_count")
+    s(e.affix.legendary_2h_sword_slider, "legendary_2h_sword_ga_count")
+    s(e.affix.legendary_2h_axe_slider, "legendary_2h_axe_ga_count")
+    s(e.affix.legendary_2h_polearm_slider, "legendary_2h_polearm_ga_count")
+    s(e.affix.legendary_staff_slider, "legendary_staff_ga_count")
+    s(e.affix.legendary_bow_slider, "legendary_bow_ga_count")
+    s(e.affix.legendary_crossbow_slider, "legendary_crossbow_ga_count")
+    s(e.affix.legendary_glaive_slider, "legendary_glaive_ga_count")
+    s(e.affix.legendary_quarterstaff_slider, "legendary_quarterstaff_ga_count")
+    s(e.affix.unique_2h_mace_slider, "unique_2h_mace_ga_count")
+    s(e.affix.unique_2h_sword_slider, "unique_2h_sword_ga_count")
+    s(e.affix.unique_2h_axe_slider, "unique_2h_axe_ga_count")
+    s(e.affix.unique_2h_polearm_slider, "unique_2h_polearm_ga_count")
+    s(e.affix.unique_staff_slider, "unique_staff_ga_count")
+    s(e.affix.unique_bow_slider, "unique_bow_ga_count")
+    s(e.affix.unique_crossbow_slider, "unique_crossbow_ga_count")
+    s(e.affix.unique_glaive_slider, "unique_glaive_ga_count")
+    s(e.affix.unique_quarterstaff_slider, "unique_quarterstaff_ga_count")
+
+    s(e.types.quest_toggle, "quest_items")
+    s(e.types.crafting_toggle, "crafting_items")
+    s(e.types.boss_toggle, "boss_items")
+    s(e.types.sigil_toggle, "sigils")
+    s(e.types.compass_toggle, "compass")
+    s(e.types.rune_toggle, "rune")
+    s(e.types.cinders_toggle, "cinders")
+    s(e.types.tribute_toggle, "tribute")
+    s(e.types.scroll_toggle, "scroll")
+    s(e.types.event_toggle, "event_items")
+    s(e.types.goblin_cache_toggle, "goblin_cache")
+    s(e.types.obols_toggle, "obols")
+    s(e.types.heavenly_sigil_toggle, "heavenly_sigil")
+    s(e.types.gemstone_toggle, "gemstone")
+    s(e.types.cache_toggle, "cache")
+    s(e.types.consumable_toggle, "consumable")
+    s(e.types.recipe_toggle, "recipe")
+    s(e.types.trophy_toggle, "trophy")
+
+    sr(e.types.sigil_rarity_combo, "sigil_rarity", RARITY_COMBO_IDX)
+    sr(e.types.compass_rarity_combo, "compass_rarity", RARITY_COMBO_IDX)
+    sr(e.types.tribute_rarity_combo, "tribute_rarity", RARITY_COMBO_IDX)
+    sr(e.types.rune_rarity_combo, "rune_rarity", RARITY_COMBO_IDX)
+    sr(e.types.gemstone_rarity_combo, "gemstone_rarity", RARITY_COMBO_IDX)
+    sr(e.types.cache_rarity_combo, "cache_rarity", RARITY_COMBO_IDX)
+    sr(e.types.scroll_rarity_combo, "scroll_rarity", RARITY_COMBO_IDX)
+    sr(e.types.consumable_rarity_combo, "consumable_rarity", RARITY_COMBO_IDX)
+    sr(e.types.recipe_rarity_combo, "recipe_rarity", RARITY_COMBO_IDX)
+    sr(e.types.crafting_rarity_combo, "crafting_rarity", RARITY_COMBO_IDX)
+
+    s(e.always.uber_toggle, "uber")
+    s(e.always.keys_toggle, "keys_loot")
+    s(e.always.xp_powerup_toggle, "xp_powerup")
+    s(e.always.glyph_drop_toggle, "glyph_drop")
+    s(e.always.misc_trinkets_toggle, "misc_trinkets")
+    s(e.always.boss_drops_toggle, "boss_drops")
+    sr(e.always.boss_drops_rarity_combo, "boss_drops_rarity", RARITY_COMBO_IDX)
+    s(e.always.class_powerup_toggle, "class_powerup")
+
+    s(e.charm.toggle, "charm")
+    sr(e.charm.rarity_combo, "charm_rarity", CHARM_RARITY_COMBO_IDX)
+    s(e.charm.ga_slider, "charm_ga_count")
+    s(e.charm.ingame_filter_toggle, "ingame_filter_charm")
+
+    s(e.cube.toggle, "cube")
+    sr(e.cube.rarity_combo, "cube_rarity", RARITY_COMBO_IDX)
+
+    s(e.seal.toggle, "seal")
+    sr(e.seal.rarity_combo, "seal_rarity", RARITY_COMBO_IDX)
+
+    s(e.fish.toggle, "fish")
+    sr(e.fish.rarity_combo, "fish_rarity", RARITY_COMBO_IDX)
+
+    s(e.crafting_mats.skip_obols_toggle, "skip_obols")
+    s(e.crafting_mats.skip_baleful_toggle, "skip_baleful")
+    s(e.crafting_mats.skip_obducite_toggle, "skip_obducite")
+    s(e.crafting_mats.skip_veiled_crystal_toggle, "skip_veiled_crystal")
+    s(e.crafting_mats.skip_rawhide_toggle, "skip_rawhide")
+    s(e.crafting_mats.skip_forgotten_soul_toggle, "skip_forgotten_soul")
+
+    s(e.ingame_loot_filter_toggle, "use_ingame_loot_filter")
 end
 
 function Settings.should_execute()
