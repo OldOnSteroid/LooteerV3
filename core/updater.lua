@@ -110,6 +110,37 @@ function Updater.fetch_config()
     end, { ["X-Profile-Key"] = key }, 15.0)
 end
 
+-- Read the Windows clipboard via PowerShell and save it as the profile key.
+-- Validates the value looks like a non-empty alphanumeric/hyphen string before
+-- writing, then re-registers with the server so the new key is active immediately.
+function Updater.paste_key_from_clipboard()
+    local handle = io.popen("powershell.exe -NoProfile -NonInteractive -Command Get-Clipboard")
+    if not handle then
+        console.print("[LooteerV3] paste_key: cannot open PowerShell")
+        return false
+    end
+    local raw = handle:read("*a") or ""
+    handle:close()
+    local key = raw:match("^%s*(.-)%s*$")  -- trim both ends
+    if key == "" then
+        console.print("[LooteerV3] paste_key: clipboard is empty")
+        return false
+    end
+    if not key:match("^[0-9a-fA-F%-]+$") then
+        console.print("[LooteerV3] paste_key: clipboard doesn't look like a key: " .. key)
+        return false
+    end
+    local f = io.open(_PLUG .. "data/profile.key", "w")
+    if not f then
+        console.print("[LooteerV3] paste_key: cannot write data/profile.key")
+        return false
+    end
+    f:write(key); f:close()
+    console.print("[LooteerV3] Profile key saved: " .. key)
+    _register(key)
+    return true
+end
+
 -- Called once on the first game tick. Ensures a profile key exists,
 -- registers it with the server, syncs config, and bootstraps the
 -- catalog if it wasn't on disk at load time.
