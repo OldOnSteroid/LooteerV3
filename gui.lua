@@ -11,7 +11,6 @@ local Updater    = require("core.updater")
 local _last_reload_state = false
 local _last_dump_affixes_state = false
 local _last_dump_currency_state = false
-local _last_paste_key_state = false
 
 -- Dropdown labels. The combo's index is translated to the actual runtime
 -- rarity threshold by Settings.update (see core/settings.lua).
@@ -30,7 +29,6 @@ gui.elements = {
     -- a reload and immediately reset to false on the next frame.
     reload_catalog_toggle = checkbox:new(false, get_hash(plugin_label .. "_reload_catalog_toggle")),
     web_config_toggle     = checkbox:new(false, get_hash(plugin_label .. "_web_config_toggle")),
-    paste_key_toggle      = checkbox:new(false, get_hash(plugin_label .. "_paste_key_toggle")),
     ingame_loot_filter_toggle = checkbox:new(false, get_hash(plugin_label .. "_ingame_loot_filter_toggle")),
 
     general = {
@@ -320,18 +318,6 @@ function gui.render()
         Settings._web_config = nil
         console.print("[LooteerV3] Web config disabled — settings applied to GUI.")
     end
-
-    -- Paste profile key from Windows clipboard (one-shot on false→true)
-    e.paste_key_toggle:render("Paste Profile Key from Clipboard",
-        "Copy your profile key from the web admin, then click this to save it to "
-        .. "data/profile.key and re-register with the server. "
-        .. "Key must contain only hex digits and hyphens.")
-    local now_paste = e.paste_key_toggle:get()
-    if now_paste and not _last_paste_key_state then
-        Updater.paste_key_from_clipboard()
-        pcall(function() e.paste_key_toggle:set(false) end)
-    end
-    _last_paste_key_state = e.paste_key_toggle:get()
 
     e.ingame_loot_filter_toggle:render("Use Ingame Loot Filter (Gear)",
         "Apply the game's loot filter to equipment (weapons, armor, jewelry). "
